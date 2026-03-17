@@ -328,11 +328,21 @@
       const [isJneModalOpen, setIsJneModalOpen] = useState(false);
       const [jneError, setJneError] = useState('');
       
-      // New State for Search, Sort, and Delete Confirmation
+      // New State for Search, Sort, Delete Confirmation
       const [searchQuery, setSearchQuery] = useState('');
-      const [sortBy, setSortBy] = useState('newest');
+      const [sortBy, setSortBy] = useState('oldest');
       const [packageToDelete, setPackageToDelete] = useState(null);
       const [isSearchActive, setIsSearchActive] = useState(false);
+      const [isScrolled, setIsScrolled] = useState(false);
+
+      // Scroll Event Listener
+      useEffect(() => {
+        const handleScroll = () => {
+          setIsScrolled(window.scrollY > 90);
+        };
+        window.addEventListener('scroll', handleScroll, { passive: true });
+        return () => window.removeEventListener('scroll', handleScroll);
+      }, []);
 
       // Firebase Auth
       useEffect(() => {
@@ -355,7 +365,8 @@
         const unsubscribe = onSnapshot(publicDataRef, (snapshot) => {
           const pkgs = [];
           snapshot.forEach(doc => pkgs.push(doc.data()));
-          pkgs.sort((a, b) => new Date(b.addedAt) - new Date(a.addedAt));
+          // Default awal dari database disesuaikan ke Terlama
+          pkgs.sort((a, b) => new Date(a.addedAt) - new Date(b.addedAt));
           setPackages(pkgs);
         }, (error) => {
           console.error("Snapshot error:", error);
@@ -460,24 +471,29 @@
         });
 
       return (
-        <div className="min-h-screen text-gray-800 font-sans p-3 sm:p-8 relative pb-20">
-          <div className="max-w-2xl mx-auto">
-            
-            {/* Header */}
-            <div className="text-center mb-8 mt-6 sm:mt-8">
-              <h1 className="text-5xl sm:text-6xl text-gray-900 mb-1 tracking-wide" style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
+        <div className="min-h-screen text-gray-800 font-sans relative pb-20">
+          
+          {/* Normal Header: Title (Tidak Sticky) */}
+          <div className="pt-6 sm:pt-8 px-3 sm:px-8">
+            <div className="max-w-2xl mx-auto text-center mb-5 sm:mb-7">
+              <h1 
+                className="text-5xl sm:text-6xl text-gray-900 mb-1 tracking-wide" 
+                style={{ fontFamily: "'Bebas Neue', sans-serif" }}
+              >
                 YEN BANGUNAN
               </h1>
               <p className="text-gray-500 uppercase tracking-[0.2em] text-[10px] sm:text-xs font-bold">
                 Tracker Pesanan Online
               </p>
             </div>
+          </div>
 
-            {/* Tracker List Section */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between mb-4 px-1 h-11 sm:h-12">
+          {/* Sticky Toolbar: Pantauan Aktif & Tombol Aksi */}
+          <div className="sticky top-0 z-40 bg-[#F8FAFC] px-3 sm:px-8 pt-2 pb-3">
+            <div className="max-w-2xl mx-auto">
+              <div className="flex items-center justify-between px-1 h-11 sm:h-12">
                 
-                {/* Bagian Kiri: Judul ATAU Search Bar Aktif */}
+                {/* Bagian Kiri: Search Bar ATAU Judul Dinamis */}
                 {isSearchActive ? (
                   <div className="flex-1 relative flex items-center h-full transition-all animate-in fade-in slide-in-from-left-4 duration-200 mr-2">
                     <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
@@ -499,12 +515,32 @@
                     </button>
                   </div>
                 ) : (
-                  <h2 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight flex items-center gap-2 animate-in fade-in slide-in-from-right-4 duration-200">
-                    Pantauan Aktif 
-                    <span className="bg-gray-200 text-gray-600 px-2.5 py-0.5 rounded-full text-sm font-bold">
-                      {packages.length}
-                    </span>
-                  </h2>
+                  <div className="flex-1 relative flex items-center h-full animate-in fade-in slide-in-from-right-4 duration-200">
+                    
+                    {/* Teks "Pantauan Aktif" (Muncul saat tidak di-scroll) */}
+                    <h2 className={`absolute left-0 text-xl sm:text-2xl font-black text-gray-900 tracking-tight flex items-center gap-2 transition-all duration-300 origin-left ${
+                      isScrolled ? 'opacity-0 scale-95 pointer-events-none' : 'opacity-100 scale-100'
+                    }`}>
+                      Pantauan Aktif 
+                      <span className="bg-gray-200 text-gray-600 px-2.5 py-0.5 rounded-full text-sm font-bold">
+                        {packages.length}
+                      </span>
+                    </h2>
+
+                    {/* Teks "YEN BANGUNAN" (Muncul saat di-scroll) */}
+                    <h2 
+                      className={`absolute left-0 text-2xl sm:text-3xl text-gray-900 tracking-wide transition-all duration-300 origin-left flex items-center gap-2 ${
+                        isScrolled ? 'opacity-100 scale-100' : 'opacity-0 scale-105 pointer-events-none'
+                      }`} 
+                      style={{ fontFamily: "'Bebas Neue', sans-serif", paddingTop: '2px' }}
+                    >
+                      YEN BANGUNAN
+                      <span className="bg-gray-200 text-gray-600 px-2.5 py-0.5 rounded-full text-sm font-sans font-bold tracking-normal" style={{ paddingTop: '0' }}>
+                        {packages.length}
+                      </span>
+                    </h2>
+
+                  </div>
                 )}
 
                 {/* Bagian Kanan: Deretan Tombol Ikon [Search] [Sort] [+] */}
@@ -527,16 +563,16 @@
                         title="Urutkan"
                       >
                         <Filter size={20} />
-                        {/* Indikator Titik Merah jika Filter aktif (bukan Terbaru) */}
-                        {sortBy !== 'newest' && <div className="absolute top-2.5 right-2.5 h-2 w-2 rounded-full bg-red-500 border border-white"></div>}
+                        {/* Indikator Titik Merah jika Filter aktif (bukan Terlama) */}
+                        {sortBy !== 'oldest' && <div className="absolute top-2.5 right-2.5 h-2 w-2 rounded-full bg-red-500 border border-white"></div>}
                       </button>
                       <select
                         value={sortBy}
                         onChange={(e) => setSortBy(e.target.value)}
                         className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                       >
-                        <option value="newest">Terbaru</option>
                         <option value="oldest">Terlama</option>
+                        <option value="newest">Terbaru</option>
                         <option value="status">Status Pengiriman</option>
                       </select>
                     </div>
@@ -551,7 +587,13 @@
                   </button>
                 </div>
               </div>
+            </div>
+          </div>
 
+          {/* Wrapper Daftar Resi */}
+          <div className="max-w-2xl mx-auto px-3 sm:px-8 pt-2">
+            
+            <div className="space-y-4">
               {filteredAndSortedPackages.length === 0 ? (
                 <div className="text-center py-20 bg-white border-2 border-dashed border-gray-200 rounded-[32px]">
                   <div className="inline-flex items-center justify-center h-16 w-16 rounded-full bg-gray-50 mb-4">
