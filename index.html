@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>YEN BANGUNAN - Tracker Pesanan</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Babel Standalone (Untuk menjalankan React JSX di browser) -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  
+  <!-- Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap" rel="stylesheet">
+</head>
+<body class="bg-[#F8FAFC]">
+  
+  <div id="root"></div>
+
+  <!-- Script Aplikasi (Module + Babel) -->
+  <script type="text/babel" data-type="module">
+    import React, { useState, useEffect } from 'https://esm.sh/react@18.2.0';
+    import { createRoot } from 'https://esm.sh/react-dom@18.2.0/client';
+    import { 
+      Package, Truck, CheckCircle, Clock, RefreshCw, Trash2, 
+      ChevronDown, ChevronUp, Search, AlertCircle, MapPin, X, Plus 
+    } from 'https://esm.sh/lucide-react@0.263.1';
+    
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
+    import { getAuth, signInAnonymously, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
+    import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, updateDoc } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
+
+    // ==========================================
+    // 1. FIREBASE CONFIGURATION (WAJIB DIGANTI)
+    // ==========================================
+    // Anda harus membuat project di console.firebase.google.com
+    // Dapatkan config di bawah ini dari Project Settings -> General -> Web App
+    const firebaseConfig = {
+      apiKey: "AIzaSyA8LV6EQ4dxHTIIabUjiHRPFcbsvoAW6Hs",
+      authDomain: "tracker-3630d.firebaseapp.com",
+      projectId: "tracker-3630d",
+      storageBucket: "tracker-3630d.firebasestorage.app",
+      messagingSenderId: "901038407111",
+      appId: "1:901038407111:web:f8479511343c5c10b4ede2",
+      measurementId: "G-38YMH0TWWZ"
+    };
+
+    let app, auth, db;
+    try {
+      app = initializeApp(firebaseConfig);
+      auth = getAuth(app);
+      db = getFirestore(app);
+    } catch (e) {
+      console.error("Gagal inisialisasi Firebase. Pastikan firebaseConfig sudah diisi dengan benar.", e);
+    }
+
+    // ==========================================
+    // 2. BINDERBYTE API (TRACKING)
+    // ==========================================
+    const COURIERS = [
+      { id: 'jnt', name: 'J&T Express' },
+      { id: 'jne', name: 'JNE' },
+      { id: 'sicepat', name: 'SiCepat Ekspres' },
+      { id: 'anteraja', name: 'AnterAja' },
+      { id: 'spx', name: 'Shopee Express (SPX)' },
+      { id: 'idexpress', name: 'ID Express' },
+      { id: 'ninja', name: 'Ninja Xpress' }
+    ];
+
+    const BINDERBYTE_API_KEY = '6e697e720e51b107214b6fde2d467f5b7f70d644be1cb1403bcd4d9cec109ba2';
+
+    const fetchTrackingFromAPI = async (awb, courier, itemName = '', phone = '') => {
+      if (awb.length < 5) throw new Error("Nomor resi tidak valid. Minimal 5 karakter.");
+
+      try {
+        const targetUrl = `https://api.binderbyte.com/v1/track?api_key=${BINDERBYTE_API_KEY}&courier=${courier}&awb=${awb}&phone=${phone}&_t=${Date.now()}`;
+        
+        const proxies = [
+          `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`,
+          `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`,
+          `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`
+        ];
+
+        let response = null;
+
+        for (const proxyUrl of proxies) {
+          try {
+            const res = await fetch(proxyUrl);
+            if (res.ok) {
+              response = res;
+              break;
+            }
+          } catch (proxyErr) {
+            console.warn(`Proxy gagal: ${proxyUrl}`);
+          }
+        }
+        
+        if (!response) {
+          throw new Error("Gagal terhubung ke server. Pastikan internet stabil atau matikan sementara AdBlocker Anda.");
+        }
+
+        const result = await response.json();
+
+        if (result.status !== 200) {
+          throw new Error(result.message || "Gagal melacak paket. Periksa kembali resi dan kurir Anda.");
+        }
+
+        const data = result.data;
+        
+        let mappedStatus = 'TRANSIT';
+        const rawStatus = (data.summary.status || '').toUpperCase();
+        if (rawStatus.includes('DELIVERED') || rawStatus.includes('SUCCESS')) mappedStatus = 'DELIVERED';
+        else if (rawStatus.includes('DELIVERING') || rawStatus.includes('WITH DELIVERY COURIER')) mappedStatus = 'DELIVERING';
+        else if (rawStatus.includes('PICKUP')) mappedStatus = 'PICKUP';
+        else if (rawStatus === '') mappedStatus = 'PENDING';
+
+        const timeline = (data.history || []).map((h, i) => ({
+          id: i.toString() + h.date,
+          description: h.desc,
+          location: h.location || '',
+          timestamp: h.date,
+        }));
+
+        return {
+          awb: data.summary.awb,
+          courier,
+          itemName,
+          phone,
+          status: mappedStatus,
+          timeline,
+          addedAt: new Date().toISOString(),
+          lastUpdated: new Date().toISOString()
+        };
+
+      } catch (err) {
+        throw new Error(err.message || "Terjadi kesalahan jaringan.");
+      }
+    };
+
+    // ==========================================
+    // 3. UI COMPONENTS
+    // ==========================================
+    const StatusBadge = ({ status }) => {
+      const configs = {
+        'DELIVERED': { color: 'bg-black text-white border-black', icon: CheckCircle, label: 'Delivered' },
+        'DELIVERING': { color: 'bg-gray-800 text-white border-gray-800', icon: Truck, label: 'Out for Delivery' },
+        'TRANSIT': { color: 'bg-gray-600 text-white border-gray-600', icon: MapPin, label: 'In Transit' },
+        'PICKUP': { color: 'bg-gray-200 text-gray-800 border-gray-300', icon: Package, label: 'Picked Up' },
+        'PENDING': { color: 'bg-white text-gray-600 border-gray-200', icon: Clock, label: 'Pending' },
+      };
+
+      const config = configs[status] || configs['PENDING'];
+      const Icon = config.icon;
+
+      return (
+        <span className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border ${config.color}`}>
+          <Icon size={14} />
+          {config.label}
+        </span>
+      );
+    };
+
+    const PackageCapsule = ({ pkg, onRemove, onRefresh }) => {
+      const [expanded, setExpanded] = useState(false);
+      const [isRefreshing, setIsRefreshing] = useState(false);
+      
+      const courierName = COURIERS.find(c => c.id === pkg.courier)?.name || pkg.courier;
+      const latestEvent = pkg.timeline[0];
+
+      const handleRefresh = async (e) => {
+        e.stopPropagation();
+        setIsRefreshing(true);
+        await onRefresh(pkg.awb, pkg.courier, pkg.itemName, pkg.phone);
+        setIsRefreshing(false);
+      };
+
+      const formatDate = (dateString) => {
+        if (!dateString) return '-';
+        const d = new Date(dateString.replace(' ', 'T')); 
+        if (isNaN(d.getTime())) return dateString;
+        return new Intl.DateTimeFormat('id-ID', {
+          day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
+        }).format(d);
+      };
+
+      return (
+        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden transition-all hover:shadow-md mb-4">
+          <div 
+            className="p-5 cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+            onClick={() => setExpanded(!expanded)}
+          >
+            <div className="flex items-center gap-4 flex-1">
+              <div className="h-12 w-12 rounded-full bg-black flex items-center justify-center text-white flex-shrink-0">
+                <Package size={24} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <h3 className="font-bold text-gray-900 truncate">
+                    {pkg.itemName ? pkg.itemName : pkg.awb}
+                  </h3>
+                  <StatusBadge status={pkg.status} />
+                </div>
+                {pkg.itemName && (
+                  <p className="text-sm font-mono text-gray-500 mb-0.5">{pkg.awb}</p>
+                )}
+                <p className="text-sm text-gray-500 font-medium">{courierName}</p>
+                <p className="text-sm text-gray-600 truncate mt-1">
+                  {latestEvent?.description}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between sm:justify-end gap-3 border-t sm:border-t-0 pt-3 sm:pt-0">
+              <div className="text-xs text-gray-400 sm:text-right hidden sm:block">
+                Updated<br/>{formatDate(pkg.lastUpdated)}
+              </div>
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={handleRefresh}
+                  disabled={isRefreshing || pkg.status === 'DELIVERED'}
+                  className={`p-2 rounded-2xl hover:bg-gray-100 transition-colors ${pkg.status === 'DELIVERED' ? 'opacity-30 cursor-not-allowed' : 'text-gray-900'}`}
+                  title="Refresh Status"
+                >
+                  <RefreshCw size={18} className={isRefreshing ? 'animate-spin' : ''} />
+                </button>
+                <button 
+                  onClick={(e) => { e.stopPropagation(); onRemove(pkg.awb); }}
+                  className="p-2 rounded-2xl hover:bg-red-50 text-red-500 transition-colors"
+                  title="Delete Tracker"
+                >
+                  <Trash2 size={18} />
+                </button>
+                <div className="p-1 text-gray-400 ml-1">
+                  {expanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {expanded && (
+            <div className="bg-gray-50 p-5 border-t border-gray-100">
+              <h4 className="text-sm font-semibold text-gray-700 mb-4 tracking-wider uppercase">Tracking History</h4>
+              <div className="relative border-l-2 border-gray-200 ml-3 space-y-6">
+                {pkg.timeline.map((event, index) => (
+                  <div key={event.id} className="relative pl-6">
+                    <div className={`absolute -left-[9px] top-1 h-4 w-4 rounded-full border-2 border-white ${index === 0 ? 'bg-black ring-4 ring-gray-100' : 'bg-gray-300'}`}></div>
+                    
+                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-1">
+                      <div>
+                        <p className={`text-sm ${index === 0 ? 'font-semibold text-gray-900' : 'text-gray-600'}`}>
+                          {event.description}
+                        </p>
+                        <p className="text-xs font-medium text-black mt-0.5">{event.location}</p>
+                      </div>
+                      <span className="text-xs text-gray-400 whitespace-nowrap">
+                        {formatDate(event.timestamp)}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    };
+
+    // ==========================================
+    // 4. MAIN APP COMPONENT
+    // ==========================================
+    function App() {
+      const [packages, setPackages] = useState([]);
+      const [inputValue, setInputValue] = useState('');
+      const [itemName, setItemName] = useState('');
+      const [phone, setPhone] = useState('');
+      const [selectedCourier, setSelectedCourier] = useState(COURIERS[0].id);
+      const [isLoading, setIsLoading] = useState(false);
+      const [error, setError] = useState('');
+      const [user, setUser] = useState(null);
+      const [isModalOpen, setIsModalOpen] = useState(false);
+      const [isJneModalOpen, setIsJneModalOpen] = useState(false);
+      const [jneError, setJneError] = useState('');
+
+      // Firebase Auth
+      useEffect(() => {
+        if (!auth) return;
+        const initAuth = async () => {
+          try {
+            await signInAnonymously(auth);
+          } catch (e) { console.error("Auth init error:", e); }
+        };
+        initAuth();
+        const unsubscribe = onAuthStateChanged(auth, setUser);
+        return () => unsubscribe();
+      }, []);
+
+      // Load & Sync from Firestore
+      useEffect(() => {
+        if (!user || !db) return;
+        const publicDataRef = collection(db, 'tracked_packages');
+        
+        const unsubscribe = onSnapshot(publicDataRef, (snapshot) => {
+          const pkgs = [];
+          snapshot.forEach(doc => pkgs.push(doc.data()));
+          pkgs.sort((a, b) => new Date(b.addedAt) - new Date(a.addedAt));
+          setPackages(pkgs);
+        }, (error) => {
+          console.error("Snapshot error:", error);
+        });
+
+        return () => unsubscribe();
+      }, [user]);
+
+      const performTracking = async (awbToTrack, courierToTrack, itemNameToTrack, phoneToTrack) => {
+        setIsLoading(true);
+        setError('');
+        setJneError('');
+
+        try {
+          const newData = await fetchTrackingFromAPI(awbToTrack, courierToTrack, itemNameToTrack, phoneToTrack);
+          const docRef = doc(db, 'tracked_packages', newData.awb);
+          await setDoc(docRef, newData);
+          
+          setInputValue('');
+          setItemName('');
+          setPhone('');
+          setIsModalOpen(false);
+          setIsJneModalOpen(false);
+        } catch (err) {
+          if (isJneModalOpen) setJneError(err.message || 'Gagal melacak resi. Silakan coba lagi.');
+          else setError(err.message || 'Gagal melacak resi. Silakan coba lagi.');
+        } finally {
+          setIsLoading(false);
+        }
+      };
+
+      const handleAddPackage = async (e) => {
+        e.preventDefault();
+        if (!inputValue.trim() || !user || !db) return;
+
+        if (packages.some(p => p.awb.toLowerCase() === inputValue.toLowerCase())) {
+          setError('Nomor resi ini sudah ada di daftar pantauan Anda.');
+          return;
+        }
+
+        if (selectedCourier === 'jne') {
+          setIsModalOpen(false);
+          setIsJneModalOpen(true);
+          return;
+        }
+
+        await performTracking(inputValue.trim().toUpperCase(), selectedCourier, itemName.trim(), '');
+      };
+
+      const handleJneSubmit = async (e) => {
+        e.preventDefault();
+        if (!phone.trim()) {
+          setJneError('Digit No. HP wajib diisi untuk JNE.');
+          return;
+        }
+        await performTracking(inputValue.trim().toUpperCase(), 'jne', itemName.trim(), phone.trim());
+      };
+
+      const handleRemovePackage = async (awb) => {
+        if (!user || !db) return;
+        try {
+          await deleteDoc(doc(db, 'tracked_packages', awb));
+        } catch (err) {
+          console.error("Failed to remove package", err);
+        }
+      };
+
+      const handleRefreshPackage = async (awb, courier, itemName, pkgPhone) => {
+        if (!user || !db) return;
+        try {
+          const updatedData = await fetchTrackingFromAPI(awb, courier, itemName, pkgPhone);
+          await updateDoc(doc(db, 'tracked_packages', awb), updatedData);
+        } catch (err) {
+          console.error("Failed to refresh", err);
+          alert(err.message);
+        }
+      };
+
+      // Tampilkan error di layar utama jika Firebase belum dikonfigurasi
+      if (!firebaseConfig.apiKey || firebaseConfig.apiKey.includes("MASUKKAN_API_KEY")) {
+        return (
+          <div className="min-h-screen flex items-center justify-center p-6 text-center">
+            <div className="bg-white p-8 rounded-3xl shadow-lg max-w-lg border border-red-200">
+              <AlertCircle size={48} className="text-red-500 mx-auto mb-4" />
+              <h2 className="text-2xl font-bold mb-2">Konfigurasi Firebase Diperlukan</h2>
+              <p className="text-gray-600 mb-4">Aplikasi ini membutuhkan database Firestore untuk menyimpan resi secara publik. Anda harus mengganti variabel <code>firebaseConfig</code> di dalam file HTML dengan kunci API Firebase milik Anda sendiri.</p>
+            </div>
+          </div>
+        );
+      }
+
+      return (
+        <div className="min-h-screen text-gray-800 font-sans p-4 sm:p-8 relative">
+          <div className="max-w-3xl mx-auto">
+            
+            <div className="text-center mb-10 mt-6 relative">
+              <h1 className="text-5xl sm:text-6xl text-gray-900 mb-2 flex items-center justify-center gap-1 tracking-tighter" style={{ fontFamily: "'Bebas Neue', sans-serif"}}>
+                YEN BANGUNAN
+              </h1>
+              <p className="text-gray-500 max-w-lg mx-auto uppercase tracking-widest text-sm font-semibold">
+                Tracker Pesanan Online
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex items-center justify-between mb-2 px-2">
+                <h2 className="text-xl font-bold text-gray-900">
+                  Pantauan Aktif <span className="text-gray-400 font-normal text-sm ml-2">({packages.length} paket)</span>
+                </h2>
+                <button 
+                  onClick={() => setIsModalOpen(true)}
+                  className="bg-black hover:bg-gray-800 text-white px-5 py-2.5 rounded-2xl text-sm font-bold flex items-center gap-2 transition-colors shadow-md"
+                >
+                  <Plus size={18} />
+                  Tambah Resi
+                </button>
+              </div>
+
+              {packages.length === 0 ? (
+                <div className="text-center py-16 bg-white border border-dashed border-gray-300 rounded-3xl">
+                  <div className="inline-flex items-center justify-center h-16 w-16 rounded-full bg-gray-50 mb-4">
+                    <Package size={28} className="text-gray-300" />
+                  </div>
+                  <p className="text-gray-500 font-medium">Belum ada paket yang dilacak.</p>
+                  <button onClick={() => setIsModalOpen(true)} className="text-black font-bold text-sm mt-2 hover:underline">
+                    + Masukkan nomor resi
+                  </button>
+                </div>
+              ) : (
+                <div>
+                  {packages.map(pkg => (
+                    <PackageCapsule 
+                      key={pkg.awb} 
+                      pkg={pkg} 
+                      onRemove={handleRemovePackage}
+                      onRefresh={handleRefreshPackage}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="mt-12 text-center text-xs text-gray-400">
+              <p>Tracker Pesanan Online dibuat oleh Fajar Jayadi</p>
+            </div>
+          </div>
+
+          {isModalOpen && (
+            <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+              <div className="bg-white rounded-3xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col transform transition-all animate-in fade-in zoom-in-95 duration-200">
+                <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                  <h3 className="font-bold text-lg text-gray-900">Tambah Resi Baru</h3>
+                  <button onClick={() => setIsModalOpen(false)} className="p-2 -mr-2 text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded-full transition-colors">
+                    <X size={20} />
+                  </button>
+                </div>
+                
+                <div className="p-6">
+                  <form onSubmit={handleAddPackage} className="flex flex-col gap-5">
+                    <div className="flex flex-col gap-4">
+                      <div className="flex-1 relative">
+                        <label className="block text-sm font-semibold text-gray-700 mb-1.5 ml-1">Nomor Resi</label>
+                        <div className="relative">
+                          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400">
+                            <Search size={18} />
+                          </div>
+                          <input
+                            type="text"
+                            value={inputValue}
+                            onChange={(e) => setInputValue(e.target.value)}
+                            placeholder="Contoh: JP8391283..."
+                            className="w-full pl-11 pr-4 py-3.5 bg-white border border-gray-200 rounded-2xl focus:ring-2 focus:ring-black focus:border-black transition-shadow outline-none text-gray-900 placeholder-gray-400 shadow-sm"
+                            required
+                            autoFocus
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-1.5 ml-1">Kurir</label>
+                        <select
+                          value={selectedCourier}
+                          onChange={(e) => setSelectedCourier(e.target.value)}
+                          className="w-full px-4 py-3.5 bg-white border border-gray-200 rounded-2xl focus:ring-2 focus:ring-black focus:border-black transition-shadow outline-none text-gray-900 appearance-none cursor-pointer shadow-sm"
+                          style={{ backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`, backgroundPosition: 'right 0.5rem center', backgroundRepeat: 'no-repeat', backgroundSize: '1.5em 1.5em' }}
+                        >
+                          {COURIERS.map(c => (
+                            <option key={c.id} value={c.id}>{c.name}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-1.5 ml-1">Nama Barang (Opsional)</label>
+                        <div className="relative">
+                          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400">
+                            <Package size={18} />
+                          </div>
+                          <input
+                            type="text"
+                            value={itemName}
+                            onChange={(e) => setItemName(e.target.value)}
+                            placeholder="Contoh: Sepatu Sneakers Putih"
+                            className="w-full pl-11 pr-4 py-3.5 bg-white border border-gray-200 rounded-2xl focus:ring-2 focus:ring-black focus:border-black transition-shadow outline-none text-gray-900 placeholder-gray-400 shadow-sm"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {error && (
+                      <div className="flex items-center gap-2 text-red-600 bg-red-50 p-3 rounded-2xl text-sm border border-red-100">
+                        <AlertCircle size={16} />
+                        {error}
+                      </div>
+                    )}
+
+                    <div className="pt-2 flex gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setIsModalOpen(false)}
+                        className="flex-1 px-4 py-3.5 rounded-2xl font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors"
+                      >
+                        Batal
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={isLoading || !user}
+                        className={`flex-[2] px-4 py-3.5 rounded-2xl font-bold text-white transition-all transform active:scale-95 ${
+                          isLoading || !user ? 'bg-gray-400 cursor-not-allowed' : 'bg-black hover:bg-gray-800 hover:shadow-lg hover:shadow-gray-300'
+                        } flex items-center justify-center gap-2`}
+                      >
+                        {isLoading ? (
+                          <>
+                            <RefreshCw size={20} className="animate-spin" />
+                            Mencari...
+                          </>
+                        ) : (
+                          <>
+                            Track Package
+                            <Truck size={20} />
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {isJneModalOpen && (
+            <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+              <div className="bg-white rounded-3xl shadow-xl w-full max-w-md overflow-hidden flex flex-col transform transition-all animate-in fade-in zoom-in-95 duration-200">
+                <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                  <h3 className="font-bold text-lg text-gray-900">Verifikasi Resi JNE</h3>
+                  <button onClick={() => { setIsJneModalOpen(false); setJneError(''); }} className="p-2 -mr-2 text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded-full transition-colors">
+                    <X size={20} />
+                  </button>
+                </div>
+                
+                <div className="p-6">
+                  <p className="text-sm text-gray-600 mb-5 leading-relaxed">
+                    Kurir JNE mewajibkan verifikasi nomor HP. Silakan masukkan <strong>4 atau 5 digit terakhir</strong> dari nomor HP penerima paket.
+                  </p>
+                  <form onSubmit={handleJneSubmit} className="flex flex-col gap-5">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1.5 ml-1">Digit Terakhir No. HP Penerima</label>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={phone}
+                          onChange={(e) => setPhone(e.target.value)}
+                          placeholder="Contoh: 8989"
+                          className="w-full px-4 py-3.5 bg-white border border-gray-200 rounded-2xl focus:ring-2 focus:ring-black focus:border-black transition-shadow outline-none text-gray-900 placeholder-gray-400 shadow-sm font-mono"
+                          required
+                          autoFocus
+                        />
+                      </div>
+                    </div>
+
+                    {jneError && (
+                      <div className="flex items-center gap-2 text-red-600 bg-red-50 p-3 rounded-2xl text-sm border border-red-100">
+                        <AlertCircle size={16} />
+                        {jneError}
+                      </div>
+                    )}
+
+                    <div className="pt-2 flex gap-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsJneModalOpen(false);
+                          setIsModalOpen(true);
+                          setJneError('');
+                        }}
+                        className="flex-1 px-4 py-3.5 rounded-2xl font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors"
+                      >
+                        Kembali
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={isLoading || !user}
+                        className={`flex-[2] px-4 py-3.5 rounded-2xl font-bold text-white transition-all transform active:scale-95 ${
+                          isLoading || !user ? 'bg-gray-400 cursor-not-allowed' : 'bg-black hover:bg-gray-800 hover:shadow-lg hover:shadow-gray-300'
+                        } flex items-center justify-center gap-2`}
+                      >
+                        {isLoading ? (
+                          <>
+                            <RefreshCw size={20} className="animate-spin" />
+                            Mencari...
+                          </>
+                        ) : (
+                          <>
+                            Verifikasi
+                            <CheckCircle size={20} />
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+          )}
+
+        </div>
+      );
+    }
+
+    // Render App
+    const root = createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
