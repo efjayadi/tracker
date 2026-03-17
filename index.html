@@ -180,6 +180,15 @@
       };
     };
 
+    // Helper fungsi untuk mendapatkan tanggal asli paket dikirim (event kurir paling awal)
+    const getPackageCreationDate = (pkg) => {
+      const dateString = pkg.timeline && pkg.timeline.length > 0 
+        ? pkg.timeline[pkg.timeline.length - 1].timestamp 
+        : pkg.addedAt;
+      const parsedDate = new Date(dateString.replace(' ', 'T'));
+      return isNaN(parsedDate.getTime()) ? new Date(pkg.addedAt).getTime() : parsedDate.getTime();
+    };
+
     const PackageCapsule = ({ pkg, onRemove, onRefresh }) => {
       const [expanded, setExpanded] = useState(false);
       const [isRefreshing, setIsRefreshing] = useState(false);
@@ -365,8 +374,8 @@
         const unsubscribe = onSnapshot(publicDataRef, (snapshot) => {
           const pkgs = [];
           snapshot.forEach(doc => pkgs.push(doc.data()));
-          // Default awal dari database disesuaikan ke Terlama
-          pkgs.sort((a, b) => new Date(a.addedAt) - new Date(b.addedAt));
+          // Default awal diurutkan berdasarkan tanggal asli keberangkatan kurir (Terlama di atas)
+          pkgs.sort((a, b) => getPackageCreationDate(a) - getPackageCreationDate(b));
           setPackages(pkgs);
         }, (error) => {
           console.error("Snapshot error:", error);
@@ -461,8 +470,8 @@
           );
         })
         .sort((a, b) => {
-          if (sortBy === 'newest') return new Date(b.addedAt) - new Date(a.addedAt);
-          if (sortBy === 'oldest') return new Date(a.addedAt) - new Date(b.addedAt);
+          if (sortBy === 'newest') return getPackageCreationDate(b) - getPackageCreationDate(a);
+          if (sortBy === 'oldest') return getPackageCreationDate(a) - getPackageCreationDate(b);
           if (sortBy === 'status') {
             const statusOrder = { 'PENDING': 1, 'PICKUP': 2, 'TRANSIT': 3, 'DELIVERING': 4, 'DELIVERED': 5 };
             return (statusOrder[a.status] || 99) - (statusOrder[b.status] || 99);
