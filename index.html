@@ -24,7 +24,7 @@
     import { createRoot } from 'https://esm.sh/react-dom@18.2.0/client';
     import { 
       Package, Truck, CheckCircle, Clock, RefreshCw, Trash2, 
-      ChevronDown, ChevronUp, Search, AlertCircle, MapPin, X, Plus, Navigation
+      ChevronDown, ChevronUp, Search, AlertCircle, MapPin, X, Plus, Navigation, Filter
     } from 'https://esm.sh/lucide-react@0.263.1';
     
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
@@ -139,22 +139,25 @@
     // ==========================================
     // 3. UI COMPONENTS
     // ==========================================
-    const StatusBadge = ({ status }) => {
+    const getStatusConfig = (status) => {
       const configs = {
-        'DELIVERED': { color: 'bg-black text-white border-black', icon: CheckCircle, label: 'delivered' },
-        'DELIVERING': { color: 'bg-gray-800 text-white border-gray-800', icon: Navigation, label: 'out for delivery' },
-        'TRANSIT': { color: 'bg-gray-600 text-white border-gray-600', icon: Truck, label: 'in transit' },
-        'PICKUP': { color: 'bg-gray-200 text-gray-800 border-gray-300', icon: Package, label: 'picked up' },
-        'PENDING': { color: 'bg-white text-gray-600 border-gray-200', icon: Clock, label: 'pending' },
+        'DELIVERED': { color: 'bg-black text-white border-black', icon: CheckCircle, label: 'Tiba' },
+        'DELIVERING': { color: 'bg-gray-800 text-white border-gray-800', icon: Navigation, label: 'Out for delivery' },
+        'TRANSIT': { color: 'bg-gray-600 text-white border-gray-600', icon: Truck, label: 'Transit' },
+        'PICKUP': { color: 'bg-gray-200 text-gray-800 border-gray-300', icon: Package, label: 'Picked up' },
+        'PENDING': { color: 'bg-white text-gray-600 border-gray-200', icon: Clock, label: 'Pending' },
       };
+      return configs[status] || configs['PENDING'];
+    };
 
-      const config = configs[status] || configs['PENDING'];
+    const StatusBadge = ({ status }) => {
+      const config = getStatusConfig(status);
       const Icon = config.icon;
 
       return (
-        <span className={`flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] sm:text-[11px] font-medium border ${config.color} tracking-wide`}>
-          <Icon size={10} strokeWidth={2} />
-          {config.label}
+        <span className={`flex items-center justify-center gap-0.5 px-1 py-0.5 rounded-full text-[8px] sm:text-[9px] font-medium border ${config.color} tracking-tight w-full shadow-sm`}>
+          <Icon size={9} strokeWidth={2.5} className="shrink-0" />
+          <span className="truncate leading-none pt-[1px]">{config.label}</span>
         </span>
       );
     };
@@ -172,7 +175,7 @@
       };
 
       return {
-        className: `h-14 w-14 sm:h-16 sm:w-16 rounded-full bg-black text-white flex items-center justify-center font-black text-xs sm:text-sm flex-shrink-0 shadow-sm tracking-tighter`,
+        className: `w-full py-1.5 px-1 rounded-lg bg-black text-white flex items-center justify-center font-black text-[10px] sm:text-xs shadow-sm tracking-tight leading-none`,
         label: labels[courierId] || 'PKG'
       };
     };
@@ -184,6 +187,14 @@
       const latestEvent = pkg.timeline[0];
       const courierAvatar = getCourierStyle(pkg.courier);
       const courierNameFull = COURIERS.find(c => c.id === pkg.courier)?.name || pkg.courier;
+
+      const statusConfig = getStatusConfig(pkg.status);
+      const StatusIcon = statusConfig.icon;
+
+      // Mendapatkan tanggal dari event paling awal (paling lama) di timeline
+      const firstEventDate = pkg.timeline && pkg.timeline.length > 0 
+        ? pkg.timeline[pkg.timeline.length - 1].timestamp 
+        : pkg.addedAt;
 
       const handleRefresh = async (e) => {
         e.stopPropagation();
@@ -205,55 +216,52 @@
       const displayTitle = pkg.itemName ? pkg.itemName : `Paket ${courierAvatar.label}`;
 
       return (
-        <div className="bg-white rounded-[24px] shadow-sm border border-gray-100 overflow-hidden transition-all hover:shadow-md mb-4">
+        <div className="bg-white rounded-[24px] shadow-sm border border-gray-100 overflow-hidden transition-all hover:shadow-md mb-3">
           
           {/* Main Capsule Header */}
           <div 
-            className="p-4 sm:p-5 cursor-pointer flex flex-col sm:flex-row justify-between gap-4"
+            className="px-3 py-2.5 sm:px-4 sm:py-3 cursor-pointer flex flex-row items-stretch justify-between gap-3"
             onClick={() => setExpanded(!expanded)}
           >
-            <div className="flex items-start gap-4 flex-1">
-              
-              {/* Courier Avatar */}
+            {/* Left Column: Avatar + Badge */}
+            <div className="flex flex-col items-stretch justify-center gap-1 shrink-0 w-[60px] sm:w-[68px]">
               <div className={courierAvatar.className}>
-                {courierAvatar.label}
+                <span className="truncate">{courierAvatar.label}</span>
               </div>
-
-              <div className="flex-1 min-w-0 pt-0.5">
-                <div className="flex flex-wrap items-center gap-2 mb-1.5">
-                  <StatusBadge status={pkg.status} />
-                </div>
-                
-                {/* Nama Barang - Wrap Text */}
-                <h3 className="font-bold text-gray-900 text-base sm:text-lg leading-snug break-words whitespace-normal mb-1">
-                  {displayTitle}
-                </h3>
-                
-                <p className="text-sm text-gray-600 line-clamp-2 leading-relaxed">
-                  {latestEvent?.description}
-                </p>
-              </div>
+              <StatusBadge status={pkg.status} />
             </div>
 
-            {/* Action Buttons */}
-            <div className="flex items-center justify-end gap-1.5 pt-3 border-t border-gray-50 sm:pt-0 sm:border-0 sm:flex-col sm:justify-start">
-              <button 
-                onClick={handleRefresh}
-                disabled={isRefreshing || pkg.status === 'DELIVERED'}
-                className={`p-2.5 rounded-xl transition-colors ${pkg.status === 'DELIVERED' ? 'opacity-30 cursor-not-allowed text-gray-400' : 'text-gray-900 hover:bg-gray-100 bg-gray-50 sm:bg-transparent'}`}
-                title="Refresh Status"
-              >
-                <RefreshCw size={18} className={isRefreshing ? 'animate-spin' : ''} />
-              </button>
-              <button 
-                onClick={(e) => { e.stopPropagation(); onRemove(pkg.awb); }}
-                className="p-2.5 rounded-xl text-gray-900 hover:text-white hover:bg-black bg-gray-50 sm:bg-transparent transition-colors"
-                title="Hapus Resi"
-              >
-                <Trash2 size={18} />
-              </button>
-              <div className="p-2 text-gray-400 ml-1">
-                {expanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+            {/* Middle Column: Text Information */}
+            <div className="flex-1 min-w-0 flex flex-col justify-center">
+              <span className="text-[8px] sm:text-[9px] text-gray-400 font-medium mb-0.5 tracking-wider uppercase">
+                {formatDate(firstEventDate)}
+              </span>
+              <h3 className="font-black text-gray-900 text-sm sm:text-base leading-tight break-words whitespace-normal mb-1">
+                {displayTitle}
+              </h3>
+              <p className="text-xs text-gray-600 line-clamp-2 leading-snug font-medium">
+                {latestEvent?.description}
+              </p>
+            </div>
+
+            {/* Right Column: Stacked Action Buttons */}
+            <div className="flex flex-col items-center justify-center border-l border-gray-100 pl-2 sm:pl-3 shrink-0">
+              <div className="flex flex-col gap-1">
+                <button 
+                  onClick={handleRefresh}
+                  disabled={isRefreshing || pkg.status === 'DELIVERED'}
+                  className={`p-1.5 rounded-xl transition-colors ${pkg.status === 'DELIVERED' ? 'opacity-30 cursor-not-allowed text-gray-400' : 'text-gray-900 hover:bg-gray-100'}`}
+                  title="Refresh Status"
+                >
+                  <RefreshCw size={16} className={isRefreshing ? 'animate-spin' : ''} />
+                </button>
+                <button 
+                  onClick={(e) => { e.stopPropagation(); onRemove(pkg.awb); }}
+                  className="p-1.5 rounded-xl text-gray-900 hover:text-white hover:bg-black transition-colors"
+                  title="Hapus Resi"
+                >
+                  <Trash2 size={16} />
+                </button>
               </div>
             </div>
           </div>
@@ -319,6 +327,12 @@
       const [isModalOpen, setIsModalOpen] = useState(false);
       const [isJneModalOpen, setIsJneModalOpen] = useState(false);
       const [jneError, setJneError] = useState('');
+      
+      // New State for Search, Sort, and Delete Confirmation
+      const [searchQuery, setSearchQuery] = useState('');
+      const [sortBy, setSortBy] = useState('newest');
+      const [packageToDelete, setPackageToDelete] = useState(null);
+      const [isSearchActive, setIsSearchActive] = useState(false);
 
       // Firebase Auth
       useEffect(() => {
@@ -400,10 +414,15 @@
         await performTracking(inputValue.trim().toUpperCase(), 'jne', itemName.trim(), phone.trim());
       };
 
-      const handleRemovePackage = async (awb) => {
-        if (!user || !db) return;
+      const requestRemovePackage = (awb) => {
+        setPackageToDelete(awb);
+      };
+
+      const confirmRemovePackage = async () => {
+        if (!user || !db || !packageToDelete) return;
         try {
-          await deleteDoc(doc(db, 'tracked_packages', awb));
+          await deleteDoc(doc(db, 'tracked_packages', packageToDelete));
+          setPackageToDelete(null);
         } catch (err) {
           console.error("Failed to remove package", err);
         }
@@ -419,6 +438,26 @@
           alert(err.message);
         }
       };
+
+      // Filter and Sort Packages Logic
+      const filteredAndSortedPackages = packages
+        .filter(pkg => {
+          const query = searchQuery.toLowerCase();
+          return (
+            pkg.awb.toLowerCase().includes(query) ||
+            (pkg.itemName && pkg.itemName.toLowerCase().includes(query)) ||
+            (pkg.courier && pkg.courier.toLowerCase().includes(query))
+          );
+        })
+        .sort((a, b) => {
+          if (sortBy === 'newest') return new Date(b.addedAt) - new Date(a.addedAt);
+          if (sortBy === 'oldest') return new Date(a.addedAt) - new Date(b.addedAt);
+          if (sortBy === 'status') {
+            const statusOrder = { 'PENDING': 1, 'PICKUP': 2, 'TRANSIT': 3, 'DELIVERING': 4, 'DELIVERED': 5 };
+            return (statusOrder[a.status] || 99) - (statusOrder[b.status] || 99);
+          }
+          return 0;
+        });
 
       return (
         <div className="min-h-screen text-gray-800 font-sans p-3 sm:p-8 relative pb-20">
@@ -436,39 +475,104 @@
 
             {/* Tracker List Section */}
             <div className="space-y-4">
-              <div className="flex items-center justify-between mb-4 px-1">
-                <h2 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight flex items-center gap-2">
-                  Pantauan Aktif 
-                  <span className="bg-gray-200 text-gray-600 px-2.5 py-0.5 rounded-full text-sm font-bold">
-                    {packages.length}
-                  </span>
-                </h2>
-                <button 
-                  onClick={() => setIsModalOpen(true)}
-                  className="bg-black hover:bg-gray-800 text-white h-11 w-11 sm:h-12 sm:w-12 rounded-2xl flex items-center justify-center transition-transform active:scale-95 shadow-md"
-                  title="Tambah Resi Baru"
-                >
-                  <Plus size={24} strokeWidth={3} />
-                </button>
+              <div className="flex items-center justify-between mb-4 px-1 h-11 sm:h-12">
+                
+                {/* Bagian Kiri: Judul ATAU Search Bar Aktif */}
+                {isSearchActive ? (
+                  <div className="flex-1 relative flex items-center h-full transition-all animate-in fade-in slide-in-from-left-4 duration-200 mr-2">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
+                      <Search size={18} />
+                    </div>
+                    <input
+                      type="text"
+                      autoFocus
+                      placeholder="Cari resi, nama, kurir..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full pl-10 pr-10 py-0 h-full bg-white border border-gray-200 rounded-2xl focus:ring-2 focus:ring-black focus:border-black transition-all outline-none text-gray-900 font-medium text-sm shadow-sm"
+                    />
+                    <button
+                      onClick={() => { setIsSearchActive(false); setSearchQuery(''); }}
+                      className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-gray-400 hover:text-gray-900 transition-colors"
+                    >
+                      <X size={18} />
+                    </button>
+                  </div>
+                ) : (
+                  <h2 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight flex items-center gap-2 animate-in fade-in slide-in-from-right-4 duration-200">
+                    Pantauan Aktif 
+                    <span className="bg-gray-200 text-gray-600 px-2.5 py-0.5 rounded-full text-sm font-bold">
+                      {packages.length}
+                    </span>
+                  </h2>
+                )}
+
+                {/* Bagian Kanan: Deretan Tombol Ikon [Search] [Sort] [+] */}
+                <div className="flex items-center gap-2 shrink-0">
+                  
+                  {!isSearchActive && packages.length > 0 && (
+                    <button 
+                      onClick={() => setIsSearchActive(true)}
+                      className="h-11 w-11 sm:h-12 sm:w-12 bg-white border border-gray-200 rounded-2xl flex items-center justify-center text-gray-700 shadow-sm hover:bg-gray-50 transition-colors"
+                      title="Cari Resi"
+                    >
+                      <Search size={20} />
+                    </button>
+                  )}
+
+                  {packages.length > 0 && (
+                    <div className="relative">
+                      <button 
+                        className="h-11 w-11 sm:h-12 sm:w-12 bg-white border border-gray-200 rounded-2xl flex items-center justify-center text-gray-700 shadow-sm hover:bg-gray-50 transition-colors"
+                        title="Urutkan"
+                      >
+                        <Filter size={20} />
+                        {/* Indikator Titik Merah jika Filter aktif (bukan Terbaru) */}
+                        {sortBy !== 'newest' && <div className="absolute top-2.5 right-2.5 h-2 w-2 rounded-full bg-red-500 border border-white"></div>}
+                      </button>
+                      <select
+                        value={sortBy}
+                        onChange={(e) => setSortBy(e.target.value)}
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                      >
+                        <option value="newest">Terbaru</option>
+                        <option value="oldest">Terlama</option>
+                        <option value="status">Status Pengiriman</option>
+                      </select>
+                    </div>
+                  )}
+
+                  <button 
+                    onClick={() => setIsModalOpen(true)}
+                    className="bg-black hover:bg-gray-800 text-white h-11 w-11 sm:h-12 sm:w-12 rounded-2xl flex items-center justify-center transition-transform active:scale-95 shadow-md shrink-0"
+                    title="Tambah Resi Baru"
+                  >
+                    <Plus size={24} strokeWidth={3} />
+                  </button>
+                </div>
               </div>
 
-              {packages.length === 0 ? (
+              {filteredAndSortedPackages.length === 0 ? (
                 <div className="text-center py-20 bg-white border-2 border-dashed border-gray-200 rounded-[32px]">
                   <div className="inline-flex items-center justify-center h-16 w-16 rounded-full bg-gray-50 mb-4">
                     <Package size={28} className="text-gray-300" />
                   </div>
-                  <p className="text-gray-500 font-semibold mb-2">Belum ada paket yang dilacak.</p>
-                  <button onClick={() => setIsModalOpen(true)} className="text-black font-black text-sm hover:underline">
-                    Tekan tombol + untuk menambah
-                  </button>
+                  <p className="text-gray-500 font-semibold mb-2">
+                    {packages.length === 0 ? "Belum ada paket yang dilacak." : "Paket tidak ditemukan."}
+                  </p>
+                  {packages.length === 0 && (
+                    <button onClick={() => setIsModalOpen(true)} className="text-black font-black text-sm hover:underline">
+                      Tekan tombol + untuk menambah
+                    </button>
+                  )}
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {packages.map(pkg => (
+                  {filteredAndSortedPackages.map(pkg => (
                     <PackageCapsule 
                       key={pkg.awb} 
                       pkg={pkg} 
-                      onRemove={handleRemovePackage}
+                      onRemove={requestRemovePackage}
                       onRefresh={handleRefreshPackage}
                     />
                   ))}
@@ -648,6 +752,35 @@
                       </button>
                     </div>
                   </form>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* DELETE CONFIRMATION MODAL */}
+          {packageToDelete && (
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center sm:p-4">
+              <div className="bg-white rounded-t-[32px] sm:rounded-[32px] shadow-2xl w-full max-w-sm overflow-hidden flex flex-col transform transition-all animate-in slide-in-from-bottom-8 sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-300 p-6 text-center">
+                <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 mb-4">
+                  <Trash2 size={28} className="text-red-600" />
+                </div>
+                <h3 className="text-xl font-black text-gray-900 mb-2">Hapus Resi?</h3>
+                <p className="text-sm text-gray-500 mb-6 font-medium">
+                  Apakah Anda yakin ingin menghapus resi <strong className="text-gray-900">{packageToDelete}</strong> dari pantauan?
+                </p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setPackageToDelete(null)}
+                    className="flex-1 py-3.5 rounded-2xl font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    onClick={confirmRemovePackage}
+                    className="flex-1 py-3.5 rounded-2xl font-bold text-white bg-red-600 hover:bg-red-700 transition-colors shadow-lg shadow-red-600/20"
+                  >
+                    Ya, Hapus
+                  </button>
                 </div>
               </div>
             </div>
