@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>YEN BANGUNAN - Tracker Pesanan</title>
+  <title>YEN BANGUNAN - Tracker Pesanan OL</title>
   
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -20,7 +20,7 @@
 
   <!-- Script Aplikasi (Module + Babel) -->
   <script type="text/babel" data-type="module">
-    import React, { useState, useEffect } from 'https://esm.sh/react@18.2.0';
+    import React, { useState, useEffect, useRef } from 'https://esm.sh/react@18.2.0';
     import { createRoot } from 'https://esm.sh/react-dom@18.2.0/client';
     import { 
       Package, Truck, CheckCircle, Clock, RefreshCw, Trash2, 
@@ -225,7 +225,7 @@
       const displayTitle = pkg.itemName ? pkg.itemName : `Paket ${courierAvatar.label}`;
 
       return (
-        <div className="bg-white rounded-[24px] shadow-sm border border-gray-100 overflow-hidden transition-all hover:shadow-md mb-3">
+        <div className="bg-white rounded-[24px] shadow-sm border border-gray-100 overflow-hidden transition-all hover:shadow-md mb-2">
           
           {/* Main Capsule Header */}
           <div 
@@ -343,6 +343,10 @@
       const [packageToDelete, setPackageToDelete] = useState(null);
       const [isSearchActive, setIsSearchActive] = useState(false);
       const [isScrolled, setIsScrolled] = useState(false);
+      
+      // Auto-Sync States
+      const [isAutoSyncing, setIsAutoSyncing] = useState(false);
+      const processedAutoRefresh = useRef(new Set());
 
       // Scroll Event Listener
       useEffect(() => {
@@ -383,6 +387,42 @@
 
         return () => unsubscribe();
       }, [user]);
+
+      // Smart Auto Refresh (Background Data Check)
+      useEffect(() => {
+        if (!user || !db || packages.length === 0) return;
+
+        const performAutoRefresh = async () => {
+          const now = new Date().getTime();
+          const AUTO_REFRESH_INTERVAL = 2 * 60 * 60 * 1000; // 2 Jam
+
+          const packagesToRefresh = packages.filter(pkg => {
+            if (pkg.status === 'DELIVERED') return false; 
+            if (processedAutoRefresh.current.has(pkg.awb)) return false; 
+            const lastUpdatedTime = new Date(pkg.lastUpdated || pkg.addedAt).getTime();
+            return (now - lastUpdatedTime) > AUTO_REFRESH_INTERVAL;
+          });
+
+          if (packagesToRefresh.length > 0) {
+            setIsAutoSyncing(true);
+            for (const pkg of packagesToRefresh) {
+              try {
+                processedAutoRefresh.current.add(pkg.awb); 
+                const updatedData = await fetchTrackingFromAPI(pkg.awb, pkg.courier, pkg.itemName, pkg.phone);
+                await setDoc(doc(db, 'tracked_packages', pkg.awb), updatedData, { merge: true });
+              } catch (err) {
+                console.warn(`Gagal auto-refresh ${pkg.awb}`);
+              }
+              await new Promise(resolve => setTimeout(resolve, 1000)); // Delay agar tidak kena limit
+            }
+            setIsAutoSyncing(false);
+          }
+        };
+
+        performAutoRefresh();
+        const intervalId = setInterval(performAutoRefresh, 5 * 60 * 1000);
+        return () => clearInterval(intervalId);
+      }, [packages, user, db]);
 
       const performTracking = async (awbToTrack, courierToTrack, itemNameToTrack, phoneToTrack) => {
         setIsLoading(true);
@@ -531,8 +571,9 @@
                       isScrolled ? 'opacity-0 scale-95 pointer-events-none' : 'opacity-100 scale-100'
                     }`}>
                       Pantauan Aktif 
-                      <span className="bg-gray-200 text-gray-600 px-2.5 py-0.5 rounded-full text-sm font-bold">
+                      <span className="bg-gray-200 text-gray-600 px-2.5 py-0.5 rounded-full text-sm font-bold flex items-center gap-1.5">
                         {packages.length}
+                        {isAutoSyncing && <RefreshCw size={12} className="animate-spin text-gray-400" />}
                       </span>
                     </h2>
 
@@ -544,8 +585,9 @@
                       style={{ fontFamily: "'Bebas Neue', sans-serif", paddingTop: '2px' }}
                     >
                       YEN BANGUNAN
-                      <span className="bg-gray-200 text-gray-600 px-2.5 py-0.5 rounded-full text-sm font-sans font-bold tracking-normal" style={{ paddingTop: '0' }}>
+                      <span className="bg-gray-200 text-gray-600 px-2.5 py-0.5 rounded-full text-sm font-sans font-bold tracking-normal flex items-center gap-1.5" style={{ paddingTop: '0' }}>
                         {packages.length}
+                        {isAutoSyncing && <RefreshCw size={12} className="animate-spin text-gray-400" />}
                       </span>
                     </h2>
 
@@ -618,7 +660,7 @@
                   )}
                 </div>
               ) : (
-                <div className="space-y-4">
+                <div>
                   {filteredAndSortedPackages.map(pkg => (
                     <PackageCapsule 
                       key={pkg.awb} 
