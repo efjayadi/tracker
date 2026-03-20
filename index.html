@@ -8,26 +8,10 @@
   <!-- 1. Tailwind CSS (HARUS DIMUAT PERTAMA) -->
   <script src="https://cdn.tailwindcss.com"></script>
   
-  <!-- 2. Tailwind Configuration (HARUS SETELAH TAILWIND CSS) -->
+  <!-- 2. Tailwind Configuration -->
   <script>
     tailwind.config = {
-      darkMode: 'class', // Ini yang membuat toggle bekerja (tidak memaksa OS)
-      theme: {
-        extend: {
-          animation: {
-            'wave': 'wave 20s ease-in-out infinite alternate',
-            'wave-slow': 'wave 25s ease-in-out infinite alternate-reverse',
-          },
-          keyframes: {
-            wave: {
-              '0%': { transform: 'translate(0px, 0px) scale(1) rotate(0deg)' },
-              '33%': { transform: 'translate(30px, -50px) scale(1.1) rotate(5deg)' },
-              '66%': { transform: 'translate(-20px, 20px) scale(0.9) rotate(-5deg)' },
-              '100%': { transform: 'translate(0px, 0px) scale(1) rotate(0deg)' }
-            }
-          }
-        }
-      }
+      darkMode: 'class', 
     };
   </script>
   
@@ -38,7 +22,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap" rel="stylesheet">
   
 </head>
-<body class="bg-[#F8FAFC] dark:bg-[#05030a] text-gray-900 dark:text-white antialiased selection:bg-black selection:text-white dark:selection:bg-white dark:selection:text-black transition-colors duration-700 ease-in-out">
+<body class="bg-[#F8FAFC] dark:bg-[#05030a] text-gray-900 dark:text-white antialiased selection:bg-black selection:text-white dark:selection:bg-white dark:selection:text-black transition-colors duration-300">
   
   <div id="root"></div>
 
@@ -163,8 +147,8 @@
         'DELIVERED': { color: 'bg-black dark:bg-violet-700 text-white dark:text-white border-black dark:border-violet-700', icon: CheckCircle, label: 'Tiba' },
         'DELIVERING': { color: 'bg-gray-800 dark:bg-violet-800 text-white dark:text-white border-gray-800 dark:border-violet-800', icon: Navigation, label: 'Out for delivery' },
         'TRANSIT': { color: 'bg-gray-600 dark:bg-violet-700/30 text-white dark:text-violet-100 border-gray-600 dark:border-violet-500/50', icon: Truck, label: 'Transit' },
-        'PICKUP': { color: 'bg-gray-200 dark:bg-violet-600/15 text-gray-800 dark:text-violet-300 border-gray-300 dark:border-violet-500/30', icon: Package, label: 'Picked up' },
-        'PENDING': { color: 'bg-white dark:bg-transparent text-gray-600 dark:text-gray-500 border-gray-200 dark:border-gray-700', icon: Clock, label: 'Pending' },
+        'PICKUP': { color: 'bg-gray-200 dark:bg-violet-600/20 text-gray-800 dark:text-violet-300 border-gray-300 dark:border-violet-500/40', icon: Package, label: 'Picked up' },
+        'PENDING': { color: 'bg-white dark:bg-[#1a162b] text-gray-600 dark:text-gray-400 border-gray-200 dark:border-[#2a2442]', icon: Clock, label: 'Pending' },
       };
       return configs[status] || configs['PENDING'];
     };
@@ -174,7 +158,7 @@
       const Icon = config.icon;
 
       return (
-        <span className={`flex items-center justify-center gap-0.5 px-1 py-0.5 rounded-full text-[8px] sm:text-[9px] font-medium border ${config.color} tracking-tight w-full shadow-sm transition-colors duration-500`}>
+        <span className={`flex items-center justify-center gap-0.5 px-1 py-0.5 rounded-full text-[8px] sm:text-[9px] font-medium border ${config.color} tracking-tight w-full shadow-sm`}>
           <Icon size={9} strokeWidth={2.5} className="shrink-0" />
           <span className="truncate leading-none pt-[1px]">{config.label}</span>
         </span>
@@ -188,7 +172,7 @@
       };
 
       return {
-        className: `w-full py-1.5 px-1 rounded-lg bg-black dark:bg-white/10 dark:border dark:border-white/10 dark:backdrop-blur-md text-white flex items-center justify-center font-black text-[10px] sm:text-xs shadow-sm tracking-tight leading-none transition-colors duration-500`,
+        className: `w-full py-1.5 px-1 rounded-lg bg-black dark:bg-[#1f1a36] dark:border dark:border-[#2a2442] text-white flex items-center justify-center font-black text-[10px] sm:text-xs shadow-sm tracking-tight leading-none`,
         label: labels[courierId] || 'PKG'
       };
     };
@@ -225,7 +209,7 @@
       const displayTitle = pkg.itemName ? pkg.itemName : `Paket ${courierAvatar.label}`;
 
       return (
-        <div className="relative bg-white dark:bg-white/[0.04] dark:backdrop-blur-2xl rounded-[24px] shadow-sm border border-gray-100 dark:border-white/10 overflow-hidden transition-all duration-500 hover:shadow-md mb-2">
+        <div className="relative bg-white dark:bg-[#131024] rounded-[24px] shadow-sm border border-gray-100 dark:border-[#231d3b] overflow-hidden mb-2">
           <div className="relative z-10">
             <div 
               className="px-3 py-2.5 sm:px-4 sm:py-3 cursor-pointer flex flex-row items-stretch justify-between gap-3"
@@ -239,21 +223,21 @@
               </div>
 
               <div className="flex-1 min-w-0 flex flex-col justify-center">
-                <span className="text-[8px] sm:text-[9px] text-gray-400 dark:text-gray-400/80 font-medium mb-0.5 tracking-wider uppercase transition-colors duration-500">
+                <span className="text-[8px] sm:text-[9px] text-gray-400 dark:text-gray-400/80 font-medium mb-0.5 tracking-wider uppercase">
                   {formatDate(firstEventDate)}
                 </span>
-                <h3 className="font-black text-gray-900 dark:text-white text-sm sm:text-base leading-tight break-words whitespace-normal mb-1 transition-colors duration-500">
+                <h3 className="font-black text-gray-900 dark:text-white text-sm sm:text-base leading-tight break-words whitespace-normal mb-1">
                   {displayTitle}
                 </h3>
-                <p className="text-xs text-gray-600 dark:text-gray-300 line-clamp-2 leading-snug font-medium transition-colors duration-500">
+                <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2 leading-snug font-medium">
                   {latestEvent?.description || 'Status belum diperbarui'}
                 </p>
               </div>
 
-              <div className="flex flex-col items-center justify-center border-l border-gray-100 dark:border-white/10 pl-2 sm:pl-3 shrink-0 transition-colors duration-500">
+              <div className="flex flex-col items-center justify-center border-l border-gray-100 dark:border-[#231d3b] pl-2 sm:pl-3 shrink-0">
                 <button 
-                  onClick={(e) => { e.stopPropagation(); onRemove(pkg.awb); }}
-                  className="p-2 rounded-xl text-gray-900 dark:text-gray-400 hover:text-white dark:hover:text-white hover:bg-red-500 dark:hover:bg-red-500/80 transition-colors duration-300"
+                  onClick={(e) => { e.stopPropagation(); onRemove(pkg); }}
+                  className="p-2 rounded-xl text-gray-900 dark:text-gray-400 hover:text-white dark:hover:text-white hover:bg-red-500 dark:hover:bg-red-600 transition-colors"
                   title="Hapus Resi"
                 >
                   <Trash2 size={16} />
@@ -262,36 +246,36 @@
             </div>
 
             {expanded && (
-              <div className="bg-gray-50 dark:bg-white/[0.02] p-4 sm:p-5 border-t border-gray-100 dark:border-white/5 transition-colors duration-500">
-                <div className="mb-5 bg-white dark:bg-white/[0.05] p-3 rounded-xl border border-gray-200 dark:border-white/10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 transition-colors duration-500">
+              <div className="bg-gray-50 dark:bg-[#0a0714] p-4 sm:p-5 border-t border-gray-100 dark:border-[#231d3b]">
+                <div className="mb-5 bg-white dark:bg-[#131024] p-3 rounded-xl border border-gray-200 dark:border-[#231d3b] flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
                   <div>
                     <p className="text-xs text-gray-500 dark:text-gray-400 font-semibold uppercase tracking-wider mb-0.5">Nomor Resi</p>
-                    <p className="font-mono text-sm font-bold text-gray-900 dark:text-white transition-colors duration-500">{pkg.awb}</p>
+                    <p className="font-mono text-sm font-bold text-gray-900 dark:text-white">{pkg.awb}</p>
                   </div>
                   <div className="sm:text-right">
                     <p className="text-xs text-gray-500 dark:text-gray-400 font-semibold uppercase tracking-wider mb-0.5">Kurir</p>
-                    <p className="text-sm font-bold text-gray-900 dark:text-white transition-colors duration-500">{courierNameFull}</p>
+                    <p className="text-sm font-bold text-gray-900 dark:text-white">{courierNameFull}</p>
                   </div>
                 </div>
 
-                <h4 className="text-xs font-bold text-gray-400 dark:text-gray-500 mb-4 tracking-wider uppercase transition-colors duration-500">Riwayat Perjalanan</h4>
-                <div className="relative border-l-2 border-gray-200 dark:border-white/10 ml-3 space-y-6 pb-2 transition-colors duration-500">
+                <h4 className="text-xs font-bold text-gray-400 dark:text-gray-500 mb-4 tracking-wider uppercase">Riwayat Perjalanan</h4>
+                <div className="relative border-l-2 border-gray-200 dark:border-[#231d3b] ml-3 space-y-6 pb-2">
                   {(pkg.timeline || []).map((event, index) => (
                     <div key={event.id || index} className="relative pl-6">
-                      <div className={`absolute -left-[9px] top-1 h-4 w-4 rounded-full border-2 transition-colors duration-500 ${index === 0 ? 'bg-black dark:bg-white ring-4 ring-gray-200 dark:ring-white/10 border-white dark:border-transparent' : 'bg-gray-300 dark:bg-white/20 border-gray-50 dark:border-[#15122b]'}`}></div>
+                      <div className={`absolute -left-[9px] top-1 h-4 w-4 rounded-full border-2 ${index === 0 ? 'bg-black dark:bg-white ring-4 ring-gray-200 dark:ring-[#231d3b] border-white dark:border-[#131024]' : 'bg-gray-300 dark:bg-[#231d3b] border-gray-50 dark:border-[#0a0714]'}`}></div>
                       
                       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-1.5">
                         <div className="pr-4">
-                          <p className={`text-sm leading-relaxed transition-colors duration-500 ${index === 0 ? 'font-bold text-gray-900 dark:text-white' : 'text-gray-600 dark:text-gray-300 font-medium'}`}>
+                          <p className={`text-sm leading-relaxed ${index === 0 ? 'font-bold text-gray-900 dark:text-white' : 'text-gray-600 dark:text-gray-300 font-medium'}`}>
                             {event.description}
                           </p>
                           {event.location && (
-                            <p className="text-xs font-bold text-black dark:text-gray-200 mt-1 flex items-center gap-1 transition-colors duration-500">
+                            <p className="text-xs font-bold text-black dark:text-gray-400 mt-1 flex items-center gap-1">
                               <MapPin size={12} /> {event.location}
                             </p>
                           )}
                         </div>
-                        <span className="text-[11px] font-semibold text-gray-400 dark:text-gray-500/80 whitespace-nowrap mt-1 sm:mt-0 transition-colors duration-500">
+                        <span className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 whitespace-nowrap mt-1 sm:mt-0">
                           {formatDate(event.timestamp)}
                         </span>
                       </div>
@@ -470,12 +454,12 @@
         await performTracking(inputValue.trim().toUpperCase(), 'jne', itemName.trim(), phone.trim());
       };
 
-      const requestRemovePackage = (awb) => setPackageToDelete(awb);
+      const requestRemovePackage = (pkg) => setPackageToDelete(pkg);
 
       const confirmRemovePackage = async () => {
         if (!user || !db || !packageToDelete) return;
         try {
-          await deleteDoc(doc(db, 'tracked_packages', packageToDelete));
+          await deleteDoc(doc(db, 'tracked_packages', packageToDelete.awb));
           setPackageToDelete(null);
         } catch (err) { console.error("Failed to remove package", err); }
       };
@@ -500,32 +484,32 @@
         });
 
       return (
-        <div className="min-h-screen font-sans relative pb-20 transition-colors duration-700">
+        <div className="min-h-screen font-sans relative pb-20">
           
-          {/* Latar Belakang Animasi Wavy Fluid (Hanya tampil di Dark Mode) */}
-          <div className="fixed inset-0 z-[-1] hidden dark:block bg-[#05030a] overflow-hidden pointer-events-none transition-colors duration-700">
-            <div className="absolute top-[0%] left-[-10%] w-[60vw] h-[60vw] max-w-[500px] max-h-[500px] bg-purple-600/20 blur-[100px] rounded-full mix-blend-screen animate-wave"></div>
-            <div className="absolute bottom-[-10%] right-[-10%] w-[60vw] h-[60vw] max-w-[500px] max-h-[500px] bg-blue-600/20 blur-[120px] rounded-full mix-blend-screen animate-wave-slow" style={{ animationDelay: '-5s' }}></div>
+          {/* Latar Belakang Aurora Ringan (Statis) */}
+          <div className="fixed inset-0 z-[-1] hidden dark:block bg-[#05030a] pointer-events-none">
+            <div className="absolute top-[-10%] left-[-10%] w-[60vw] h-[60vw] max-w-[400px] max-h-[400px] bg-violet-900/10 blur-[80px] rounded-full"></div>
+            <div className="absolute bottom-[-10%] right-[-10%] w-[60vw] h-[60vw] max-w-[400px] max-h-[400px] bg-blue-900/10 blur-[80px] rounded-full"></div>
           </div>
 
           {/* Normal Header: Title */}
           <div className="pt-6 sm:pt-8 px-3 sm:px-8">
             <div className="max-w-2xl mx-auto text-center mb-5 sm:mb-7">
               <h1 
-                className="text-5xl sm:text-6xl mb-1 tracking-wide text-gray-900 dark:text-white transition-colors duration-700" 
+                className="text-5xl sm:text-6xl mb-1 tracking-wide text-gray-900 dark:text-white" 
                 style={{ fontFamily: "'Bebas Neue', sans-serif" }}
               >
                 YEN BANGUNAN
               </h1>
-              <p className="text-gray-500 dark:text-gray-400 uppercase tracking-[0.2em] text-[10px] sm:text-xs font-bold transition-colors duration-700">
+              <p className="text-gray-500 dark:text-gray-400 uppercase tracking-[0.2em] text-[10px] sm:text-xs font-bold">
                 Tracker Pesanan Online
               </p>
             </div>
           </div>
 
-          {/* Sticky Toolbar: Pantauan Aktif & Tombol Aksi - Menghapus bg putih saat sticky */}
-          <div className={`sticky top-0 z-40 px-3 sm:px-8 pt-2 pb-3 transition-colors duration-700 ${
-            isScrolled ? 'backdrop-blur-md dark:backdrop-blur-2xl border-b border-gray-200 dark:border-white/10' : 'bg-transparent'
+          {/* Sticky Toolbar: Pantauan Aktif & Tombol Aksi */}
+          <div className={`sticky top-0 z-40 px-3 sm:px-8 pt-2 pb-3 transition-colors duration-300 ${
+            isScrolled ? 'backdrop-blur-md bg-white/90 dark:bg-[#05030a]/80 border-b border-gray-200 dark:border-white/10' : 'bg-transparent'
           }`}>
             <div className="max-w-2xl mx-auto relative z-10">
               <div className="flex items-center justify-between px-1 h-11 sm:h-12">
@@ -542,11 +526,11 @@
                       placeholder="Cari resi, nama, kurir..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full pl-10 pr-10 py-0 h-full bg-white dark:bg-white/[0.05] dark:backdrop-blur-xl border border-gray-200 dark:border-white/10 rounded-2xl focus:ring-2 focus:ring-black dark:focus:ring-white focus:border-black dark:focus:border-transparent transition-all outline-none text-gray-900 dark:text-white font-medium text-sm shadow-sm placeholder-gray-400 dark:placeholder-gray-500 duration-500"
+                      className="w-full pl-10 pr-10 py-0 h-full bg-white dark:bg-[#131024] border border-gray-200 dark:border-[#231d3b] rounded-2xl focus:ring-2 focus:ring-black dark:focus:ring-violet-500 focus:border-black dark:focus:border-transparent outline-none text-gray-900 dark:text-white font-medium text-sm shadow-sm placeholder-gray-400 dark:placeholder-gray-500"
                     />
                     <button
                       onClick={() => { setIsSearchActive(false); setSearchQuery(''); }}
-                      className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors duration-300"
+                      className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-gray-400 hover:text-gray-900 dark:hover:text-white"
                     >
                       <X size={18} />
                     </button>
@@ -555,27 +539,27 @@
                   <div className="flex-1 relative flex items-center h-full animate-in fade-in slide-in-from-right-4 duration-300">
                     
                     {/* Teks "Pantauan Aktif" */}
-                    <h2 className={`absolute left-0 text-xl sm:text-2xl font-black text-gray-900 dark:text-white tracking-tight flex items-center gap-2 transition-all duration-500 origin-left ${
+                    <h2 className={`absolute left-0 text-xl sm:text-2xl font-black text-gray-900 dark:text-white tracking-tight flex items-center gap-2 transition-all duration-300 origin-left ${
                       isScrolled ? 'opacity-0 scale-95 pointer-events-none' : 'opacity-100 scale-100'
                     }`}>
                       Pantauan Aktif 
-                      <span className="bg-gray-200 dark:bg-white/10 text-gray-600 dark:text-white px-2.5 py-0.5 rounded-full text-sm font-bold flex items-center gap-1.5 dark:border dark:border-white/5 transition-colors duration-500">
+                      <span className="bg-gray-200 dark:bg-[#131024] text-gray-600 dark:text-white px-2.5 py-0.5 rounded-full text-sm font-bold flex items-center gap-1.5 dark:border dark:border-[#231d3b]">
                         {packages.length}
-                        {isAutoSyncing && <RefreshCw size={12} className="animate-spin text-gray-400 dark:text-gray-300" />}
+                        {isAutoSyncing && <RefreshCw size={12} className="animate-spin text-gray-400 dark:text-gray-400" />}
                       </span>
                     </h2>
 
                     {/* Teks "YEN BANGUNAN" (Muncul saat di-scroll) */}
                     <h2 
-                      className={`absolute left-0 text-2xl sm:text-3xl text-gray-900 dark:text-white tracking-wide transition-all duration-500 origin-left flex items-center gap-2 ${
+                      className={`absolute left-0 text-2xl sm:text-3xl text-gray-900 dark:text-white tracking-wide transition-all duration-300 origin-left flex items-center gap-2 ${
                         isScrolled ? 'opacity-100 scale-100' : 'opacity-0 scale-105 pointer-events-none'
                       }`} 
                       style={{ fontFamily: "'Bebas Neue', sans-serif", paddingTop: '2px' }}
                     >
                       YEN BANGUNAN
-                      <span className="bg-gray-200 dark:bg-white/10 text-gray-600 dark:text-white px-2.5 py-0.5 rounded-full text-sm font-sans font-bold tracking-normal flex items-center gap-1.5 dark:border dark:border-white/5 transition-colors duration-500" style={{ paddingTop: '0' }}>
+                      <span className="bg-gray-200 dark:bg-[#131024] text-gray-600 dark:text-white px-2.5 py-0.5 rounded-full text-sm font-sans font-bold tracking-normal flex items-center gap-1.5 dark:border dark:border-[#231d3b]" style={{ paddingTop: '0' }}>
                         {packages.length}
-                        {isAutoSyncing && <RefreshCw size={12} className="animate-spin text-gray-400 dark:text-gray-300" />}
+                        {isAutoSyncing && <RefreshCw size={12} className="animate-spin text-gray-400 dark:text-gray-400" />}
                       </span>
                     </h2>
 
@@ -588,7 +572,7 @@
                   {!isSearchActive && packages.length > 0 && (
                     <button 
                       onClick={() => setIsSearchActive(true)}
-                      className="h-11 w-11 sm:h-12 sm:w-12 bg-white dark:bg-white/[0.05] dark:backdrop-blur-lg border border-gray-200 dark:border-white/10 rounded-2xl flex items-center justify-center text-gray-700 dark:text-white shadow-sm hover:bg-gray-50 dark:hover:bg-white/10 transition-colors duration-500"
+                      className="h-11 w-11 sm:h-12 sm:w-12 bg-white dark:bg-[#131024] border border-gray-200 dark:border-[#231d3b] rounded-2xl flex items-center justify-center text-gray-700 dark:text-white shadow-sm hover:bg-gray-50 dark:hover:bg-[#1a162b] transition-colors"
                     >
                       <Search size={20} />
                     </button>
@@ -597,7 +581,7 @@
                   {packages.length > 0 && (
                     <div className="relative">
                       <button 
-                        className="h-11 w-11 sm:h-12 sm:w-12 bg-white dark:bg-white/[0.05] dark:backdrop-blur-lg border border-gray-200 dark:border-white/10 rounded-2xl flex items-center justify-center text-gray-700 dark:text-white shadow-sm hover:bg-gray-50 dark:hover:bg-white/10 transition-colors duration-500"
+                        className="h-11 w-11 sm:h-12 sm:w-12 bg-white dark:bg-[#131024] border border-gray-200 dark:border-[#231d3b] rounded-2xl flex items-center justify-center text-gray-700 dark:text-white shadow-sm hover:bg-gray-50 dark:hover:bg-[#1a162b] transition-colors"
                       >
                         <Filter size={20} />
                         {sortBy !== 'oldest' && <div className="absolute top-2.5 right-2.5 h-2 w-2 rounded-full bg-red-500 border border-white dark:border-transparent"></div>}
@@ -605,7 +589,7 @@
                       <select
                         value={sortBy}
                         onChange={(e) => setSortBy(e.target.value)}
-                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer dark:bg-[#0a071d] dark:text-white"
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer dark:bg-[#0a0714] dark:text-white"
                       >
                         <option value="oldest">Terlama</option>
                         <option value="newest">Terbaru</option>
@@ -616,7 +600,7 @@
 
                   <button 
                     onClick={() => setIsModalOpen(true)}
-                    className="bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-gray-200 text-white dark:text-black h-11 w-11 sm:h-12 sm:w-12 rounded-2xl flex items-center justify-center transition-transform active:scale-95 shadow-md shrink-0 duration-500"
+                    className="bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-gray-200 text-white dark:text-black h-11 w-11 sm:h-12 sm:w-12 rounded-2xl flex items-center justify-center transition-transform active:scale-95 shadow-md shrink-0"
                   >
                     <Plus size={24} strokeWidth={3} />
                   </button>
@@ -630,16 +614,16 @@
             
             <div className="space-y-4">
               {filteredAndSortedPackages.length === 0 ? (
-                <div className="relative text-center py-20 bg-white dark:bg-white/[0.02] dark:backdrop-blur-xl border-2 border-dashed border-gray-200 dark:border-white/10 rounded-[32px] overflow-hidden transition-colors duration-500">
+                <div className="relative text-center py-20 bg-white dark:bg-[#131024] border-2 border-dashed border-gray-200 dark:border-[#231d3b] rounded-[32px] overflow-hidden">
                   <div className="relative z-10">
-                    <div className="inline-flex items-center justify-center h-16 w-16 rounded-full bg-gray-50 dark:bg-white/5 mb-4 transition-colors duration-500">
+                    <div className="inline-flex items-center justify-center h-16 w-16 rounded-full bg-gray-50 dark:bg-[#1f1a36] mb-4">
                       <Package size={28} className="text-gray-300 dark:text-gray-500" />
                     </div>
-                    <p className="text-gray-500 dark:text-gray-400 font-semibold mb-2 transition-colors duration-500">
+                    <p className="text-gray-500 dark:text-gray-400 font-semibold mb-2">
                       {packages.length === 0 ? "Belum ada paket yang dilacak." : "Paket tidak ditemukan."}
                     </p>
                     {packages.length === 0 && (
-                      <button onClick={() => setIsModalOpen(true)} className="text-black dark:text-white font-black text-sm hover:underline transition-colors duration-500">
+                      <button onClick={() => setIsModalOpen(true)} className="text-black dark:text-white font-black text-sm hover:underline">
                         Tekan tombol + untuk menambah
                       </button>
                     )}
@@ -662,23 +646,23 @@
               <p>Dibuat oleh Fajar Jayadi</p>
               
               {/* TOMBOL TEMA (FULL WIDTH SLIDING SWITCH - BULAT PENUH) */}
-              <div className="w-full relative p-1.5 bg-gray-100 dark:bg-white/5 dark:backdrop-blur-xl rounded-full flex items-center border border-gray-200 dark:border-white/10 transition-colors duration-500">
+              <div className="w-full relative p-1.5 bg-gray-100 dark:bg-[#131024] rounded-full flex items-center border border-gray-200 dark:border-[#231d3b]">
                 {/* Latar Belakang Geser (Pill) */}
                 <div 
-                  className="absolute top-1.5 bottom-1.5 w-[calc(50%-6px)] bg-white dark:bg-white/10 border border-gray-200 dark:border-white/10 rounded-full shadow-sm dark:shadow-lg transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)]"
+                  className="absolute top-1.5 bottom-1.5 w-[calc(50%-6px)] bg-white dark:bg-[#1f1a36] border border-gray-200 dark:border-[#2a2442] rounded-full shadow-sm dark:shadow-md transition-all duration-300 ease-out"
                   style={{ left: theme === 'dark' ? 'calc(50% + 3px)' : '6px' }}
                 ></div>
                 
                 <button 
                   onClick={() => setTheme('light')}
-                  className={`flex-1 flex items-center justify-center gap-2 py-3.5 z-10 text-[11px] uppercase tracking-wider font-bold transition-colors duration-500 ${theme === 'light' ? 'text-black' : 'text-gray-500 hover:text-gray-300'}`}
+                  className={`flex-1 flex items-center justify-center gap-2 py-3.5 z-10 text-[11px] uppercase tracking-wider font-bold transition-colors duration-300 ${theme === 'light' ? 'text-black' : 'text-gray-500 hover:text-gray-300'}`}
                 >
                   <Sun size={14} strokeWidth={2.5} /> Mode Terang
                 </button>
                 
                 <button 
                   onClick={() => setTheme('dark')}
-                  className={`flex-1 flex items-center justify-center gap-2 py-3.5 z-10 text-[11px] uppercase tracking-wider font-bold transition-colors duration-500 ${theme === 'dark' ? 'text-white' : 'text-gray-400 hover:text-gray-300'}`}
+                  className={`flex-1 flex items-center justify-center gap-2 py-3.5 z-10 text-[11px] uppercase tracking-wider font-bold transition-colors duration-300 ${theme === 'dark' ? 'text-white' : 'text-gray-400 hover:text-gray-300'}`}
                 >
                   <Moon size={14} strokeWidth={2.5} /> Mode Gelap
                 </button>
@@ -689,11 +673,17 @@
 
           {/* MAIN ADD PACKAGE MODAL */}
           {isModalOpen && (
-            <div className="fixed inset-0 bg-black/60 dark:bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center sm:p-4">
-              <div className="relative bg-white dark:bg-[#0a071d]/80 dark:backdrop-blur-3xl dark:border dark:border-white/10 rounded-t-[32px] sm:rounded-[32px] shadow-2xl w-full max-w-lg overflow-hidden flex flex-col transform transition-all animate-in slide-in-from-bottom-8 sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-500">
-                <div className="relative z-10 px-6 py-5 border-b border-gray-100 dark:border-white/10 flex justify-between items-center bg-white dark:bg-transparent transition-colors duration-500">
+            <div 
+              className="fixed inset-0 bg-black/60 dark:bg-black/70 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center sm:p-4"
+              onClick={() => setIsModalOpen(false)}
+            >
+              <div 
+                className="relative bg-white dark:bg-[#131024] dark:border dark:border-[#231d3b] rounded-t-[32px] sm:rounded-[32px] shadow-2xl w-full max-w-lg overflow-hidden flex flex-col transform transition-all animate-in slide-in-from-bottom-8 sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-300"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="relative z-10 px-6 py-5 border-b border-gray-100 dark:border-[#231d3b] flex justify-between items-center bg-white dark:bg-transparent">
                   <h3 className="font-black text-xl text-gray-900 dark:text-white tracking-tight">Lacak Resi Baru</h3>
-                  <button onClick={() => setIsModalOpen(false)} className="p-2 -mr-2 text-gray-400 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 rounded-full transition-colors bg-gray-50 dark:bg-white/5">
+                  <button onClick={() => setIsModalOpen(false)} className="p-2 -mr-2 text-gray-400 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-[#1f1a36] rounded-full transition-colors bg-gray-50 dark:bg-[#0a0714]">
                     <X size={20} strokeWidth={3} />
                   </button>
                 </div>
@@ -702,7 +692,7 @@
                   <form onSubmit={handleAddPackage} className="flex flex-col gap-5">
                     <div className="space-y-5">
                       <div className="relative">
-                        <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2 ml-1 transition-colors duration-500">Nomor Resi</label>
+                        <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2 ml-1">Nomor Resi</label>
                         <div className="relative">
                           <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400">
                             <Search size={20} />
@@ -712,7 +702,7 @@
                             value={inputValue}
                             onChange={(e) => setInputValue(e.target.value)}
                             placeholder="Contoh: JP8391283..."
-                            className="w-full pl-12 pr-4 py-4 bg-gray-50 dark:bg-white/[0.05] dark:backdrop-blur-xl border border-gray-200 dark:border-white/10 rounded-2xl focus:bg-white dark:focus:bg-white/10 focus:ring-2 focus:ring-black dark:focus:ring-white focus:border-black dark:focus:border-transparent transition-all outline-none text-gray-900 dark:text-white placeholder-gray-400 font-mono font-bold text-sm sm:text-base duration-500"
+                            className="w-full pl-12 pr-4 py-4 bg-gray-50 dark:bg-[#0a0714] border border-gray-200 dark:border-[#231d3b] rounded-2xl focus:bg-white dark:focus:bg-[#1a162b] focus:ring-2 focus:ring-black dark:focus:ring-violet-500 focus:border-black dark:focus:border-transparent outline-none text-gray-900 dark:text-white placeholder-gray-400 font-mono font-bold text-sm sm:text-base"
                             required
                             autoFocus
                           />
@@ -720,21 +710,21 @@
                       </div>
 
                       <div>
-                        <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2 ml-1 transition-colors duration-500">Pilih Kurir</label>
+                        <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2 ml-1">Pilih Kurir</label>
                         <select
                           value={selectedCourier}
                           onChange={(e) => setSelectedCourier(e.target.value)}
-                          className="w-full px-4 py-4 bg-gray-50 dark:bg-[#0a071d] border border-gray-200 dark:border-white/10 rounded-2xl focus:bg-white dark:focus:bg-[#150f38] focus:ring-2 focus:ring-black dark:focus:ring-white focus:border-black transition-all outline-none text-gray-900 dark:text-white appearance-none cursor-pointer font-bold text-sm sm:text-base duration-500"
+                          className="w-full px-4 py-4 bg-gray-50 dark:bg-[#0a0714] border border-gray-200 dark:border-[#231d3b] rounded-2xl focus:bg-white dark:focus:bg-[#1a162b] focus:ring-2 focus:ring-black dark:focus:ring-violet-500 focus:border-black outline-none text-gray-900 dark:text-white appearance-none cursor-pointer font-bold text-sm sm:text-base"
                           style={{ backgroundImage: theme === 'dark' ? `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23fff' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")` : `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23000' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`, backgroundPosition: 'right 1rem center', backgroundRepeat: 'no-repeat', backgroundSize: '1.2em 1.2em' }}
                         >
                           {COURIERS.map(c => (
-                            <option key={c.id} value={c.id} className="dark:bg-[#0a071d] dark:text-white">{c.name}</option>
+                            <option key={c.id} value={c.id} className="dark:bg-[#0a0714] dark:text-white">{c.name}</option>
                           ))}
                         </select>
                       </div>
 
                       <div>
-                        <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2 ml-1 transition-colors duration-500">Nama Barang (Opsional)</label>
+                        <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2 ml-1">Nama Barang (Opsional)</label>
                         <div className="relative">
                           <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400">
                             <Package size={20} />
@@ -744,14 +734,14 @@
                             value={itemName}
                             onChange={(e) => setItemName(e.target.value)}
                             placeholder="Contoh: Sepatu Sneakers"
-                            className="w-full pl-12 pr-4 py-4 bg-gray-50 dark:bg-white/[0.05] dark:backdrop-blur-xl border border-gray-200 dark:border-white/10 rounded-2xl focus:bg-white dark:focus:bg-white/10 focus:ring-2 focus:ring-black dark:focus:ring-white focus:border-black dark:focus:border-transparent transition-all outline-none text-gray-900 dark:text-white placeholder-gray-400 font-bold text-sm sm:text-base duration-500"
+                            className="w-full pl-12 pr-4 py-4 bg-gray-50 dark:bg-[#0a0714] border border-gray-200 dark:border-[#231d3b] rounded-2xl focus:bg-white dark:focus:bg-[#1a162b] focus:ring-2 focus:ring-black dark:focus:ring-violet-500 focus:border-black dark:focus:border-transparent outline-none text-gray-900 dark:text-white placeholder-gray-400 font-bold text-sm sm:text-base"
                           />
                         </div>
                       </div>
                     </div>
 
                     {error && (
-                      <div className="flex items-start gap-2 text-red-600 dark:text-red-300 bg-red-50 dark:bg-red-500/20 p-4 rounded-2xl text-sm border border-red-100 dark:border-red-500/30 font-medium transition-colors duration-500">
+                      <div className="flex items-start gap-2 text-red-600 dark:text-red-300 bg-red-50 dark:bg-red-900/30 p-4 rounded-2xl text-sm border border-red-100 dark:border-red-800/50 font-medium">
                         <AlertCircle size={18} className="shrink-0 mt-0.5" />
                         {error}
                       </div>
@@ -761,8 +751,8 @@
                       <button
                         type="submit"
                         disabled={isLoading || !user}
-                        className={`w-full py-4 rounded-2xl font-black transition-all transform active:scale-[0.98] shadow-lg duration-500 ${
-                          isLoading || !user ? 'bg-gray-400 dark:bg-white/20 text-white dark:text-white/50 shadow-none' : 'bg-black dark:bg-white text-white dark:text-black hover:bg-gray-800 dark:hover:bg-gray-200 hover:shadow-xl'
+                        className={`w-full py-4 rounded-2xl font-black transition-transform active:scale-[0.98] shadow-lg ${
+                          isLoading || !user ? 'bg-gray-400 dark:bg-gray-700 text-white dark:text-gray-400 shadow-none' : 'bg-black dark:bg-violet-600 text-white hover:bg-gray-800 dark:hover:bg-violet-700 hover:shadow-xl'
                         } flex items-center justify-center gap-2 text-base`}
                       >
                         {isLoading ? (
@@ -786,38 +776,44 @@
 
           {/* JNE VERIFICATION MODAL */}
           {isJneModalOpen && (
-            <div className="fixed inset-0 bg-black/60 dark:bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center sm:p-4">
-              <div className="relative bg-white dark:bg-[#0a071d]/80 dark:backdrop-blur-3xl dark:border dark:border-white/10 rounded-t-[32px] sm:rounded-[32px] shadow-2xl w-full max-w-md overflow-hidden flex flex-col transform transition-all animate-in slide-in-from-bottom-8 sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-500">
-                <div className="relative z-10 px-6 py-5 border-b border-gray-100 dark:border-white/10 flex justify-between items-center bg-white dark:bg-transparent transition-colors duration-500">
+            <div 
+              className="fixed inset-0 bg-black/60 dark:bg-black/70 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center sm:p-4"
+              onClick={() => { setIsJneModalOpen(false); setJneError(''); }}
+            >
+              <div 
+                className="relative bg-white dark:bg-[#131024] dark:border dark:border-[#231d3b] rounded-t-[32px] sm:rounded-[32px] shadow-2xl w-full max-w-md overflow-hidden flex flex-col transform transition-all animate-in slide-in-from-bottom-8 sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-300"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="relative z-10 px-6 py-5 border-b border-gray-100 dark:border-[#231d3b] flex justify-between items-center bg-white dark:bg-transparent">
                   <h3 className="font-black text-xl text-gray-900 dark:text-white tracking-tight">Verifikasi JNE</h3>
-                  <button onClick={() => { setIsJneModalOpen(false); setJneError(''); }} className="p-2 -mr-2 text-gray-400 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 rounded-full transition-colors bg-gray-50 dark:bg-white/5">
+                  <button onClick={() => { setIsJneModalOpen(false); setJneError(''); }} className="p-2 -mr-2 text-gray-400 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-[#1f1a36] rounded-full transition-colors bg-gray-50 dark:bg-[#0a0714]">
                     <X size={20} strokeWidth={3} />
                   </button>
                 </div>
                 
                 <div className="relative z-10 p-6">
-                  <div className="bg-blue-50 dark:bg-blue-500/20 border border-blue-100 dark:border-blue-500/30 rounded-2xl p-4 mb-6 transition-colors duration-500">
-                    <p className="text-sm text-blue-900 dark:text-blue-100 font-medium leading-relaxed">
+                  <div className="bg-blue-50 dark:bg-violet-900/20 border border-blue-100 dark:border-violet-800/30 rounded-2xl p-4 mb-6">
+                    <p className="text-sm text-blue-900 dark:text-violet-200 font-medium leading-relaxed">
                       Kurir JNE mewajibkan verifikasi demi keamanan. Masukkan <strong>4 - 5 digit terakhir</strong> dari nomor HP si penerima paket.
                     </p>
                   </div>
                   
                   <form onSubmit={handleJneSubmit} className="flex flex-col gap-5">
                     <div>
-                      <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2 ml-1 transition-colors duration-500">Digit Terakhir HP Penerima</label>
+                      <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2 ml-1">Digit Terakhir HP Penerima</label>
                       <input
                         type="number"
                         value={phone}
                         onChange={(e) => setPhone(e.target.value)}
                         placeholder="Contoh: 8989"
-                        className="w-full px-5 py-4 bg-gray-50 dark:bg-white/[0.05] dark:backdrop-blur-xl border border-gray-200 dark:border-white/10 rounded-2xl focus:bg-white dark:focus:bg-white/10 focus:ring-2 focus:ring-black dark:focus:ring-white focus:border-black dark:focus:border-transparent transition-all outline-none text-gray-900 dark:text-white placeholder-gray-400 font-mono font-bold text-lg text-center tracking-widest duration-500"
+                        className="w-full px-5 py-4 bg-gray-50 dark:bg-[#0a0714] border border-gray-200 dark:border-[#231d3b] rounded-2xl focus:bg-white dark:focus:bg-[#1a162b] focus:ring-2 focus:ring-black dark:focus:ring-violet-500 focus:border-black outline-none text-gray-900 dark:text-white placeholder-gray-400 font-mono font-bold text-lg text-center tracking-widest"
                         required
                         autoFocus
                       />
                     </div>
 
                     {jneError && (
-                      <div className="flex items-start gap-2 text-red-600 dark:text-red-300 bg-red-50 dark:bg-red-500/20 p-4 rounded-2xl text-sm border border-red-100 dark:border-red-500/30 font-medium transition-colors duration-500">
+                      <div className="flex items-start gap-2 text-red-600 dark:text-red-300 bg-red-50 dark:bg-red-900/30 p-4 rounded-2xl text-sm border border-red-100 dark:border-red-800/50 font-medium">
                         <AlertCircle size={18} className="shrink-0 mt-0.5" />
                         {jneError}
                       </div>
@@ -831,15 +827,15 @@
                           setIsModalOpen(true);
                           setJneError('');
                         }}
-                        className="flex-1 py-4 rounded-2xl font-black text-gray-700 dark:text-white bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 transition-colors duration-500"
+                        className="flex-1 py-4 rounded-2xl font-black text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-[#1f1a36] hover:bg-gray-200 dark:hover:bg-[#2a2442] transition-colors"
                       >
                         Kembali
                       </button>
                       <button
                         type="submit"
                         disabled={isLoading || !user}
-                        className={`flex-[1.5] py-4 rounded-2xl font-black text-white transition-all transform active:scale-[0.98] duration-500 ${
-                          isLoading || !user ? 'bg-gray-400 dark:bg-white/20 text-white/50' : 'bg-[#004A98] dark:bg-blue-600 hover:bg-blue-900 dark:hover:bg-blue-500 shadow-lg'
+                        className={`flex-[1.5] py-4 rounded-2xl font-black text-white transition-transform active:scale-[0.98] ${
+                          isLoading || !user ? 'bg-gray-400 dark:bg-gray-700 text-white/50' : 'bg-[#004A98] dark:bg-violet-600 hover:bg-blue-900 dark:hover:bg-violet-700 shadow-lg'
                         } flex items-center justify-center gap-2`}
                       >
                         {isLoading ? (
@@ -859,26 +855,32 @@
 
           {/* DELETE CONFIRMATION MODAL */}
           {packageToDelete && (
-            <div className="fixed inset-0 bg-black/60 dark:bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center sm:p-4">
-              <div className="relative bg-white dark:bg-[#0a071d]/80 dark:backdrop-blur-3xl dark:border dark:border-white/10 rounded-t-[32px] sm:rounded-[32px] shadow-2xl w-full max-w-sm overflow-hidden flex flex-col transform transition-all animate-in slide-in-from-bottom-8 sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-500 p-6 text-center">
+            <div 
+              className="fixed inset-0 bg-black/60 dark:bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+              onClick={() => setPackageToDelete(null)}
+            >
+              <div 
+                className="relative bg-white dark:bg-[#131024] dark:border dark:border-[#231d3b] rounded-[32px] shadow-2xl w-full max-w-sm overflow-hidden flex flex-col transform transition-all animate-in zoom-in-95 duration-300 p-6 text-center"
+                onClick={(e) => e.stopPropagation()}
+              >
                 <div className="relative z-10">
-                  <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 dark:bg-red-500/20 mb-4 transition-colors duration-500">
-                    <Trash2 size={28} className="text-red-600 dark:text-red-400 transition-colors duration-500" />
+                  <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 dark:bg-red-900/30 mb-4">
+                    <Trash2 size={28} className="text-red-600 dark:text-red-400" />
                   </div>
-                  <h3 className="text-xl font-black text-gray-900 dark:text-white mb-2 transition-colors duration-500">Hapus Resi?</h3>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-6 font-medium transition-colors duration-500">
-                    Apakah Anda yakin ingin menghapus resi <strong className="text-gray-900 dark:text-white">{packageToDelete}</strong> dari pantauan?
+                  <h3 className="text-xl font-black text-gray-900 dark:text-white mb-2">Hapus Resi?</h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-6 font-medium">
+                    Apakah Anda yakin ingin menghapus <strong className="text-gray-900 dark:text-white">{packageToDelete.itemName || packageToDelete.awb}</strong> dari pantauan?
                   </p>
                   <div className="flex gap-3">
                     <button
                       onClick={() => setPackageToDelete(null)}
-                      className="flex-1 py-3.5 rounded-2xl font-bold text-gray-700 dark:text-white bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 transition-colors duration-500"
+                      className="flex-1 py-3.5 rounded-2xl font-bold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-[#1f1a36] hover:bg-gray-200 dark:hover:bg-[#2a2442] transition-colors"
                     >
                       Batal
                     </button>
                     <button
                       onClick={confirmRemovePackage}
-                      className="flex-1 py-3.5 rounded-2xl font-bold text-white bg-red-600 hover:bg-red-700 transition-colors shadow-lg duration-500"
+                      className="flex-1 py-3.5 rounded-2xl font-bold text-white bg-red-600 hover:bg-red-700 dark:bg-red-600 dark:hover:bg-red-700 transition-colors shadow-lg"
                     >
                       Ya, Hapus
                     </button>
