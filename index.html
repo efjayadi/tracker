@@ -3,18 +3,42 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>YEN BANGUNAN - Tracker Pesanan OL</title>
+  <title>YEN BANGUNAN - Tracker Pesanan</title>
   
-  <!-- Tailwind CSS -->
+  <!-- 1. Tailwind CSS (HARUS DIMUAT PERTAMA) -->
   <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- 2. Tailwind Configuration (HARUS SETELAH TAILWIND CSS) -->
+  <script>
+    tailwind.config = {
+      darkMode: 'class', // Ini yang membuat toggle bekerja (tidak memaksa OS)
+      theme: {
+        extend: {
+          animation: {
+            'wave': 'wave 20s ease-in-out infinite alternate',
+            'wave-slow': 'wave 25s ease-in-out infinite alternate-reverse',
+          },
+          keyframes: {
+            wave: {
+              '0%': { transform: 'translate(0px, 0px) scale(1) rotate(0deg)' },
+              '33%': { transform: 'translate(30px, -50px) scale(1.1) rotate(5deg)' },
+              '66%': { transform: 'translate(-20px, 20px) scale(0.9) rotate(-5deg)' },
+              '100%': { transform: 'translate(0px, 0px) scale(1) rotate(0deg)' }
+            }
+          }
+        }
+      }
+    };
+  </script>
   
   <!-- Babel Standalone -->
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   
   <!-- Font -->
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap" rel="stylesheet">
+  
 </head>
-<body class="bg-[#F8FAFC] antialiased selection:bg-black selection:text-white">
+<body class="bg-[#F8FAFC] dark:bg-[#05030a] text-gray-900 dark:text-white antialiased selection:bg-black selection:text-white dark:selection:bg-white dark:selection:text-black transition-colors duration-700 ease-in-out">
   
   <div id="root"></div>
 
@@ -24,12 +48,12 @@
     import { createRoot } from 'https://esm.sh/react-dom@18.2.0/client';
     import { 
       Package, Truck, CheckCircle, Clock, RefreshCw, Trash2, 
-      ChevronDown, ChevronUp, Search, AlertCircle, MapPin, X, Plus, Navigation, Filter
+      Search, AlertCircle, MapPin, X, Plus, Navigation, Filter, Moon, Sun
     } from 'https://esm.sh/lucide-react@0.263.1';
     
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
     import { getAuth, signInAnonymously, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
-    import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, updateDoc } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
+    import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
 
     // ==========================================
     // 1. FIREBASE CONFIGURATION
@@ -85,17 +109,12 @@
         for (const proxyUrl of proxies) {
           try {
             const res = await fetch(proxyUrl);
-            if (res.ok) {
-              response = res;
-              break;
-            }
-          } catch (proxyErr) {
-            console.warn(`Proxy gagal: ${proxyUrl}`);
-          }
+            if (res.ok) { response = res; break; }
+          } catch (proxyErr) {}
         }
         
         if (!response) {
-          throw new Error("Gagal terhubung ke server. Pastikan internet stabil atau matikan sementara AdBlocker Anda.");
+          throw new Error("Gagal terhubung ke server. Pastikan internet stabil.");
         }
 
         const result = await response.json();
@@ -141,11 +160,11 @@
     // ==========================================
     const getStatusConfig = (status) => {
       const configs = {
-        'DELIVERED': { color: 'bg-black text-white border-black', icon: CheckCircle, label: 'Tiba' },
-        'DELIVERING': { color: 'bg-gray-800 text-white border-gray-800', icon: Navigation, label: 'Out for delivery' },
-        'TRANSIT': { color: 'bg-gray-600 text-white border-gray-600', icon: Truck, label: 'Transit' },
-        'PICKUP': { color: 'bg-gray-200 text-gray-800 border-gray-300', icon: Package, label: 'Picked up' },
-        'PENDING': { color: 'bg-white text-gray-600 border-gray-200', icon: Clock, label: 'Pending' },
+        'DELIVERED': { color: 'bg-black dark:bg-violet-700 text-white dark:text-white border-black dark:border-violet-700', icon: CheckCircle, label: 'Tiba' },
+        'DELIVERING': { color: 'bg-gray-800 dark:bg-violet-800 text-white dark:text-white border-gray-800 dark:border-violet-800', icon: Navigation, label: 'Out for delivery' },
+        'TRANSIT': { color: 'bg-gray-600 dark:bg-violet-700/30 text-white dark:text-violet-100 border-gray-600 dark:border-violet-500/50', icon: Truck, label: 'Transit' },
+        'PICKUP': { color: 'bg-gray-200 dark:bg-violet-600/15 text-gray-800 dark:text-violet-300 border-gray-300 dark:border-violet-500/30', icon: Package, label: 'Picked up' },
+        'PENDING': { color: 'bg-white dark:bg-transparent text-gray-600 dark:text-gray-500 border-gray-200 dark:border-gray-700', icon: Clock, label: 'Pending' },
       };
       return configs[status] || configs['PENDING'];
     };
@@ -155,62 +174,44 @@
       const Icon = config.icon;
 
       return (
-        <span className={`flex items-center justify-center gap-0.5 px-1 py-0.5 rounded-full text-[8px] sm:text-[9px] font-medium border ${config.color} tracking-tight w-full shadow-sm`}>
+        <span className={`flex items-center justify-center gap-0.5 px-1 py-0.5 rounded-full text-[8px] sm:text-[9px] font-medium border ${config.color} tracking-tight w-full shadow-sm transition-colors duration-500`}>
           <Icon size={9} strokeWidth={2.5} className="shrink-0" />
           <span className="truncate leading-none pt-[1px]">{config.label}</span>
         </span>
       );
     };
 
-    // Fungsi untuk mendapatkan gaya Avatar Kurir
     const getCourierStyle = (courierId) => {
       const labels = {
-        'spx': 'SPX',
-        'jnt': 'J&T',
-        'sicepat': 'SiCepat',
-        'anteraja': 'AnterAja',
-        'idexpress': 'ID',
-        'ninja': 'NIN',
-        'jne': 'JNE'
+        'spx': 'SPX', 'jnt': 'J&T', 'sicepat': 'SiCepat', 'anteraja': 'AnterAja',
+        'idexpress': 'ID', 'ninja': 'NIN', 'jne': 'JNE'
       };
 
       return {
-        className: `w-full py-1.5 px-1 rounded-lg bg-black text-white flex items-center justify-center font-black text-[10px] sm:text-xs shadow-sm tracking-tight leading-none`,
+        className: `w-full py-1.5 px-1 rounded-lg bg-black dark:bg-white/10 dark:border dark:border-white/10 dark:backdrop-blur-md text-white flex items-center justify-center font-black text-[10px] sm:text-xs shadow-sm tracking-tight leading-none transition-colors duration-500`,
         label: labels[courierId] || 'PKG'
       };
     };
 
-    // Helper fungsi untuk mendapatkan tanggal asli paket dikirim (event kurir paling awal)
     const getPackageCreationDate = (pkg) => {
       const dateString = pkg.timeline && pkg.timeline.length > 0 
         ? pkg.timeline[pkg.timeline.length - 1].timestamp 
         : pkg.addedAt;
-      const parsedDate = new Date(dateString.replace(' ', 'T'));
+      const parsedDate = new Date((dateString || '').replace(' ', 'T'));
       return isNaN(parsedDate.getTime()) ? new Date(pkg.addedAt).getTime() : parsedDate.getTime();
     };
 
-    const PackageCapsule = ({ pkg, onRemove, onRefresh }) => {
+    const PackageCapsule = ({ pkg, onRemove }) => {
       const [expanded, setExpanded] = useState(false);
-      const [isRefreshing, setIsRefreshing] = useState(false);
+      if (!pkg) return null;
       
-      const latestEvent = pkg.timeline[0];
+      const latestEvent = pkg.timeline?.[0];
       const courierAvatar = getCourierStyle(pkg.courier);
       const courierNameFull = COURIERS.find(c => c.id === pkg.courier)?.name || pkg.courier;
 
-      const statusConfig = getStatusConfig(pkg.status);
-      const StatusIcon = statusConfig.icon;
-
-      // Mendapatkan tanggal dari event paling awal (paling lama) di timeline
       const firstEventDate = pkg.timeline && pkg.timeline.length > 0 
         ? pkg.timeline[pkg.timeline.length - 1].timestamp 
         : pkg.addedAt;
-
-      const handleRefresh = async (e) => {
-        e.stopPropagation();
-        setIsRefreshing(true);
-        await onRefresh(pkg.awb, pkg.courier, pkg.itemName, pkg.phone);
-        setIsRefreshing(false);
-      };
 
       const formatDate = (dateString) => {
         if (!dateString) return '-';
@@ -221,102 +222,85 @@
         }).format(d);
       };
 
-      // Fallback name jika Nama Barang kosong
       const displayTitle = pkg.itemName ? pkg.itemName : `Paket ${courierAvatar.label}`;
 
       return (
-        <div className="bg-white rounded-[24px] shadow-sm border border-gray-100 overflow-hidden transition-all hover:shadow-md mb-2">
-          
-          {/* Main Capsule Header */}
-          <div 
-            className="px-3 py-2.5 sm:px-4 sm:py-3 cursor-pointer flex flex-row items-stretch justify-between gap-3"
-            onClick={() => setExpanded(!expanded)}
-          >
-            {/* Left Column: Avatar + Badge */}
-            <div className="flex flex-col items-stretch justify-center gap-1 shrink-0 w-[60px] sm:w-[68px]">
-              <div className={courierAvatar.className}>
-                <span className="truncate">{courierAvatar.label}</span>
+        <div className="relative bg-white dark:bg-white/[0.04] dark:backdrop-blur-2xl rounded-[24px] shadow-sm border border-gray-100 dark:border-white/10 overflow-hidden transition-all duration-500 hover:shadow-md mb-2">
+          <div className="relative z-10">
+            <div 
+              className="px-3 py-2.5 sm:px-4 sm:py-3 cursor-pointer flex flex-row items-stretch justify-between gap-3"
+              onClick={() => setExpanded(!expanded)}
+            >
+              <div className="flex flex-col items-stretch justify-center gap-1 shrink-0 w-[60px] sm:w-[68px]">
+                <div className={courierAvatar.className}>
+                  <span className="truncate">{courierAvatar.label}</span>
+                </div>
+                <StatusBadge status={pkg.status} />
               </div>
-              <StatusBadge status={pkg.status} />
-            </div>
 
-            {/* Middle Column: Text Information */}
-            <div className="flex-1 min-w-0 flex flex-col justify-center">
-              <span className="text-[8px] sm:text-[9px] text-gray-400 font-medium mb-0.5 tracking-wider uppercase">
-                {formatDate(firstEventDate)}
-              </span>
-              <h3 className="font-black text-gray-900 text-sm sm:text-base leading-tight break-words whitespace-normal mb-1">
-                {displayTitle}
-              </h3>
-              <p className="text-xs text-gray-600 line-clamp-2 leading-snug font-medium">
-                {latestEvent?.description}
-              </p>
-            </div>
+              <div className="flex-1 min-w-0 flex flex-col justify-center">
+                <span className="text-[8px] sm:text-[9px] text-gray-400 dark:text-gray-400/80 font-medium mb-0.5 tracking-wider uppercase transition-colors duration-500">
+                  {formatDate(firstEventDate)}
+                </span>
+                <h3 className="font-black text-gray-900 dark:text-white text-sm sm:text-base leading-tight break-words whitespace-normal mb-1 transition-colors duration-500">
+                  {displayTitle}
+                </h3>
+                <p className="text-xs text-gray-600 dark:text-gray-300 line-clamp-2 leading-snug font-medium transition-colors duration-500">
+                  {latestEvent?.description || 'Status belum diperbarui'}
+                </p>
+              </div>
 
-            {/* Right Column: Stacked Action Buttons */}
-            <div className="flex flex-col items-center justify-center border-l border-gray-100 pl-2 sm:pl-3 shrink-0">
-              <div className="flex flex-col gap-1">
-                <button 
-                  onClick={handleRefresh}
-                  disabled={isRefreshing || pkg.status === 'DELIVERED'}
-                  className={`p-1.5 rounded-xl transition-colors ${pkg.status === 'DELIVERED' ? 'opacity-30 cursor-not-allowed text-gray-400' : 'text-gray-900 hover:bg-gray-100'}`}
-                  title="Refresh Status"
-                >
-                  <RefreshCw size={16} className={isRefreshing ? 'animate-spin' : ''} />
-                </button>
+              <div className="flex flex-col items-center justify-center border-l border-gray-100 dark:border-white/10 pl-2 sm:pl-3 shrink-0 transition-colors duration-500">
                 <button 
                   onClick={(e) => { e.stopPropagation(); onRemove(pkg.awb); }}
-                  className="p-1.5 rounded-xl text-gray-900 hover:text-white hover:bg-black transition-colors"
+                  className="p-2 rounded-xl text-gray-900 dark:text-gray-400 hover:text-white dark:hover:text-white hover:bg-red-500 dark:hover:bg-red-500/80 transition-colors duration-300"
                   title="Hapus Resi"
                 >
                   <Trash2 size={16} />
                 </button>
               </div>
             </div>
-          </div>
 
-          {/* Expanded Timeline & Details */}
-          {expanded && (
-            <div className="bg-gray-50 p-4 sm:p-5 border-t border-gray-100">
-              
-              {/* Hidden AWB Details */}
-              <div className="mb-5 bg-white p-3 rounded-xl border border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-                <div>
-                  <p className="text-xs text-gray-500 font-semibold uppercase tracking-wider mb-0.5">Nomor Resi</p>
-                  <p className="font-mono text-sm font-bold text-gray-900">{pkg.awb}</p>
-                </div>
-                <div className="sm:text-right">
-                  <p className="text-xs text-gray-500 font-semibold uppercase tracking-wider mb-0.5">Kurir</p>
-                  <p className="text-sm font-bold text-gray-900">{courierNameFull}</p>
-                </div>
-              </div>
-
-              <h4 className="text-xs font-bold text-gray-400 mb-4 tracking-wider uppercase">Riwayat Perjalanan</h4>
-              <div className="relative border-l-2 border-gray-200 ml-3 space-y-6 pb-2">
-                {pkg.timeline.map((event, index) => (
-                  <div key={event.id} className="relative pl-6">
-                    <div className={`absolute -left-[9px] top-1 h-4 w-4 rounded-full border-2 border-gray-50 ${index === 0 ? 'bg-black ring-4 ring-gray-200' : 'bg-gray-300'}`}></div>
-                    
-                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-1.5">
-                      <div className="pr-4">
-                        <p className={`text-sm leading-relaxed ${index === 0 ? 'font-bold text-gray-900' : 'text-gray-600 font-medium'}`}>
-                          {event.description}
-                        </p>
-                        {event.location && (
-                          <p className="text-xs font-bold text-black mt-1 flex items-center gap-1">
-                            <MapPin size={12} /> {event.location}
-                          </p>
-                        )}
-                      </div>
-                      <span className="text-[11px] font-semibold text-gray-400 whitespace-nowrap mt-1 sm:mt-0">
-                        {formatDate(event.timestamp)}
-                      </span>
-                    </div>
+            {expanded && (
+              <div className="bg-gray-50 dark:bg-white/[0.02] p-4 sm:p-5 border-t border-gray-100 dark:border-white/5 transition-colors duration-500">
+                <div className="mb-5 bg-white dark:bg-white/[0.05] p-3 rounded-xl border border-gray-200 dark:border-white/10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 transition-colors duration-500">
+                  <div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 font-semibold uppercase tracking-wider mb-0.5">Nomor Resi</p>
+                    <p className="font-mono text-sm font-bold text-gray-900 dark:text-white transition-colors duration-500">{pkg.awb}</p>
                   </div>
-                ))}
+                  <div className="sm:text-right">
+                    <p className="text-xs text-gray-500 dark:text-gray-400 font-semibold uppercase tracking-wider mb-0.5">Kurir</p>
+                    <p className="text-sm font-bold text-gray-900 dark:text-white transition-colors duration-500">{courierNameFull}</p>
+                  </div>
+                </div>
+
+                <h4 className="text-xs font-bold text-gray-400 dark:text-gray-500 mb-4 tracking-wider uppercase transition-colors duration-500">Riwayat Perjalanan</h4>
+                <div className="relative border-l-2 border-gray-200 dark:border-white/10 ml-3 space-y-6 pb-2 transition-colors duration-500">
+                  {(pkg.timeline || []).map((event, index) => (
+                    <div key={event.id || index} className="relative pl-6">
+                      <div className={`absolute -left-[9px] top-1 h-4 w-4 rounded-full border-2 transition-colors duration-500 ${index === 0 ? 'bg-black dark:bg-white ring-4 ring-gray-200 dark:ring-white/10 border-white dark:border-transparent' : 'bg-gray-300 dark:bg-white/20 border-gray-50 dark:border-[#15122b]'}`}></div>
+                      
+                      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-1.5">
+                        <div className="pr-4">
+                          <p className={`text-sm leading-relaxed transition-colors duration-500 ${index === 0 ? 'font-bold text-gray-900 dark:text-white' : 'text-gray-600 dark:text-gray-300 font-medium'}`}>
+                            {event.description}
+                          </p>
+                          {event.location && (
+                            <p className="text-xs font-bold text-black dark:text-gray-200 mt-1 flex items-center gap-1 transition-colors duration-500">
+                              <MapPin size={12} /> {event.location}
+                            </p>
+                          )}
+                        </div>
+                        <span className="text-[11px] font-semibold text-gray-400 dark:text-gray-500/80 whitespace-nowrap mt-1 sm:mt-0 transition-colors duration-500">
+                          {formatDate(event.timestamp)}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       );
     };
@@ -337,16 +321,32 @@
       const [isJneModalOpen, setIsJneModalOpen] = useState(false);
       const [jneError, setJneError] = useState('');
       
-      // New State for Search, Sort, Delete Confirmation
       const [searchQuery, setSearchQuery] = useState('');
       const [sortBy, setSortBy] = useState('oldest');
       const [packageToDelete, setPackageToDelete] = useState(null);
       const [isSearchActive, setIsSearchActive] = useState(false);
       const [isScrolled, setIsScrolled] = useState(false);
       
-      // Auto-Sync States
       const [isAutoSyncing, setIsAutoSyncing] = useState(false);
       const processedAutoRefresh = useRef(new Set());
+
+      // Theme State (Dark Mode) - Default is strictly 'light'
+      const [theme, setTheme] = useState(() => {
+        if (typeof window !== 'undefined') {
+          return localStorage.getItem('theme') || 'light';
+        }
+        return 'light';
+      });
+
+      useEffect(() => {
+        const root = document.documentElement;
+        if (theme === 'dark') {
+          root.classList.add('dark');
+        } else {
+          root.classList.remove('dark');
+        }
+        localStorage.setItem('theme', theme);
+      }, [theme]);
 
       // Scroll Event Listener
       useEffect(() => {
@@ -361,9 +361,8 @@
       useEffect(() => {
         if (!auth) return;
         const initAuth = async () => {
-          try {
-            await signInAnonymously(auth);
-          } catch (e) { console.error("Auth init error:", e); }
+          try { await signInAnonymously(auth); } 
+          catch (e) { console.error("Auth init error:", e); }
         };
         initAuth();
         const unsubscribe = onAuthStateChanged(auth, setUser);
@@ -378,7 +377,6 @@
         const unsubscribe = onSnapshot(publicDataRef, (snapshot) => {
           const pkgs = [];
           snapshot.forEach(doc => pkgs.push(doc.data()));
-          // Default awal diurutkan berdasarkan tanggal asli keberangkatan kurir (Terlama di atas)
           pkgs.sort((a, b) => getPackageCreationDate(a) - getPackageCreationDate(b));
           setPackages(pkgs);
         }, (error) => {
@@ -410,10 +408,8 @@
                 processedAutoRefresh.current.add(pkg.awb); 
                 const updatedData = await fetchTrackingFromAPI(pkg.awb, pkg.courier, pkg.itemName, pkg.phone);
                 await setDoc(doc(db, 'tracked_packages', pkg.awb), updatedData, { merge: true });
-              } catch (err) {
-                console.warn(`Gagal auto-refresh ${pkg.awb}`);
-              }
-              await new Promise(resolve => setTimeout(resolve, 1000)); // Delay agar tidak kena limit
+              } catch (err) {}
+              await new Promise(resolve => setTimeout(resolve, 1000));
             }
             setIsAutoSyncing(false);
           }
@@ -474,32 +470,16 @@
         await performTracking(inputValue.trim().toUpperCase(), 'jne', itemName.trim(), phone.trim());
       };
 
-      const requestRemovePackage = (awb) => {
-        setPackageToDelete(awb);
-      };
+      const requestRemovePackage = (awb) => setPackageToDelete(awb);
 
       const confirmRemovePackage = async () => {
         if (!user || !db || !packageToDelete) return;
         try {
           await deleteDoc(doc(db, 'tracked_packages', packageToDelete));
           setPackageToDelete(null);
-        } catch (err) {
-          console.error("Failed to remove package", err);
-        }
+        } catch (err) { console.error("Failed to remove package", err); }
       };
 
-      const handleRefreshPackage = async (awb, courier, itemName, pkgPhone) => {
-        if (!user || !db) return;
-        try {
-          const updatedData = await fetchTrackingFromAPI(awb, courier, itemName, pkgPhone);
-          await updateDoc(doc(db, 'tracked_packages', awb), updatedData);
-        } catch (err) {
-          console.error("Failed to refresh", err);
-          alert(err.message);
-        }
-      };
-
-      // Filter and Sort Packages Logic
       const filteredAndSortedPackages = packages
         .filter(pkg => {
           const query = searchQuery.toLowerCase();
@@ -520,31 +500,39 @@
         });
 
       return (
-        <div className="min-h-screen text-gray-800 font-sans relative pb-20">
+        <div className="min-h-screen font-sans relative pb-20 transition-colors duration-700">
           
-          {/* Normal Header: Title (Tidak Sticky) */}
+          {/* Latar Belakang Animasi Wavy Fluid (Hanya tampil di Dark Mode) */}
+          <div className="fixed inset-0 z-[-1] hidden dark:block bg-[#05030a] overflow-hidden pointer-events-none transition-colors duration-700">
+            <div className="absolute top-[0%] left-[-10%] w-[60vw] h-[60vw] max-w-[500px] max-h-[500px] bg-purple-600/20 blur-[100px] rounded-full mix-blend-screen animate-wave"></div>
+            <div className="absolute bottom-[-10%] right-[-10%] w-[60vw] h-[60vw] max-w-[500px] max-h-[500px] bg-blue-600/20 blur-[120px] rounded-full mix-blend-screen animate-wave-slow" style={{ animationDelay: '-5s' }}></div>
+          </div>
+
+          {/* Normal Header: Title */}
           <div className="pt-6 sm:pt-8 px-3 sm:px-8">
             <div className="max-w-2xl mx-auto text-center mb-5 sm:mb-7">
               <h1 
-                className="text-5xl sm:text-6xl text-gray-900 mb-1 tracking-wide" 
+                className="text-5xl sm:text-6xl mb-1 tracking-wide text-gray-900 dark:text-white transition-colors duration-700" 
                 style={{ fontFamily: "'Bebas Neue', sans-serif" }}
               >
                 YEN BANGUNAN
               </h1>
-              <p className="text-gray-500 uppercase tracking-[0.2em] text-[10px] sm:text-xs font-bold">
+              <p className="text-gray-500 dark:text-gray-400 uppercase tracking-[0.2em] text-[10px] sm:text-xs font-bold transition-colors duration-700">
                 Tracker Pesanan Online
               </p>
             </div>
           </div>
 
-          {/* Sticky Toolbar: Pantauan Aktif & Tombol Aksi */}
-          <div className="sticky top-0 z-40 bg-[#F8FAFC] px-3 sm:px-8 pt-2 pb-3">
-            <div className="max-w-2xl mx-auto">
+          {/* Sticky Toolbar: Pantauan Aktif & Tombol Aksi - Menghapus bg putih saat sticky */}
+          <div className={`sticky top-0 z-40 px-3 sm:px-8 pt-2 pb-3 transition-colors duration-700 ${
+            isScrolled ? 'backdrop-blur-md dark:backdrop-blur-2xl border-b border-gray-200 dark:border-white/10' : 'bg-transparent'
+          }`}>
+            <div className="max-w-2xl mx-auto relative z-10">
               <div className="flex items-center justify-between px-1 h-11 sm:h-12">
                 
                 {/* Bagian Kiri: Search Bar ATAU Judul Dinamis */}
                 {isSearchActive ? (
-                  <div className="flex-1 relative flex items-center h-full transition-all animate-in fade-in slide-in-from-left-4 duration-200 mr-2">
+                  <div className="flex-1 relative flex items-center h-full transition-all animate-in fade-in slide-in-from-left-4 duration-300 mr-2">
                     <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
                       <Search size={18} />
                     </div>
@@ -554,54 +542,53 @@
                       placeholder="Cari resi, nama, kurir..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full pl-10 pr-10 py-0 h-full bg-white border border-gray-200 rounded-2xl focus:ring-2 focus:ring-black focus:border-black transition-all outline-none text-gray-900 font-medium text-sm shadow-sm"
+                      className="w-full pl-10 pr-10 py-0 h-full bg-white dark:bg-white/[0.05] dark:backdrop-blur-xl border border-gray-200 dark:border-white/10 rounded-2xl focus:ring-2 focus:ring-black dark:focus:ring-white focus:border-black dark:focus:border-transparent transition-all outline-none text-gray-900 dark:text-white font-medium text-sm shadow-sm placeholder-gray-400 dark:placeholder-gray-500 duration-500"
                     />
                     <button
                       onClick={() => { setIsSearchActive(false); setSearchQuery(''); }}
-                      className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-gray-400 hover:text-gray-900 transition-colors"
+                      className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors duration-300"
                     >
                       <X size={18} />
                     </button>
                   </div>
                 ) : (
-                  <div className="flex-1 relative flex items-center h-full animate-in fade-in slide-in-from-right-4 duration-200">
+                  <div className="flex-1 relative flex items-center h-full animate-in fade-in slide-in-from-right-4 duration-300">
                     
-                    {/* Teks "Pantauan Aktif" (Muncul saat tidak di-scroll) */}
-                    <h2 className={`absolute left-0 text-xl sm:text-2xl font-black text-gray-900 tracking-tight flex items-center gap-2 transition-all duration-300 origin-left ${
+                    {/* Teks "Pantauan Aktif" */}
+                    <h2 className={`absolute left-0 text-xl sm:text-2xl font-black text-gray-900 dark:text-white tracking-tight flex items-center gap-2 transition-all duration-500 origin-left ${
                       isScrolled ? 'opacity-0 scale-95 pointer-events-none' : 'opacity-100 scale-100'
                     }`}>
                       Pantauan Aktif 
-                      <span className="bg-gray-200 text-gray-600 px-2.5 py-0.5 rounded-full text-sm font-bold flex items-center gap-1.5">
+                      <span className="bg-gray-200 dark:bg-white/10 text-gray-600 dark:text-white px-2.5 py-0.5 rounded-full text-sm font-bold flex items-center gap-1.5 dark:border dark:border-white/5 transition-colors duration-500">
                         {packages.length}
-                        {isAutoSyncing && <RefreshCw size={12} className="animate-spin text-gray-400" />}
+                        {isAutoSyncing && <RefreshCw size={12} className="animate-spin text-gray-400 dark:text-gray-300" />}
                       </span>
                     </h2>
 
                     {/* Teks "YEN BANGUNAN" (Muncul saat di-scroll) */}
                     <h2 
-                      className={`absolute left-0 text-2xl sm:text-3xl text-gray-900 tracking-wide transition-all duration-300 origin-left flex items-center gap-2 ${
+                      className={`absolute left-0 text-2xl sm:text-3xl text-gray-900 dark:text-white tracking-wide transition-all duration-500 origin-left flex items-center gap-2 ${
                         isScrolled ? 'opacity-100 scale-100' : 'opacity-0 scale-105 pointer-events-none'
                       }`} 
                       style={{ fontFamily: "'Bebas Neue', sans-serif", paddingTop: '2px' }}
                     >
                       YEN BANGUNAN
-                      <span className="bg-gray-200 text-gray-600 px-2.5 py-0.5 rounded-full text-sm font-sans font-bold tracking-normal flex items-center gap-1.5" style={{ paddingTop: '0' }}>
+                      <span className="bg-gray-200 dark:bg-white/10 text-gray-600 dark:text-white px-2.5 py-0.5 rounded-full text-sm font-sans font-bold tracking-normal flex items-center gap-1.5 dark:border dark:border-white/5 transition-colors duration-500" style={{ paddingTop: '0' }}>
                         {packages.length}
-                        {isAutoSyncing && <RefreshCw size={12} className="animate-spin text-gray-400" />}
+                        {isAutoSyncing && <RefreshCw size={12} className="animate-spin text-gray-400 dark:text-gray-300" />}
                       </span>
                     </h2>
 
                   </div>
                 )}
 
-                {/* Bagian Kanan: Deretan Tombol Ikon [Search] [Sort] [+] */}
+                {/* Bagian Kanan: Ikon */}
                 <div className="flex items-center gap-2 shrink-0">
                   
                   {!isSearchActive && packages.length > 0 && (
                     <button 
                       onClick={() => setIsSearchActive(true)}
-                      className="h-11 w-11 sm:h-12 sm:w-12 bg-white border border-gray-200 rounded-2xl flex items-center justify-center text-gray-700 shadow-sm hover:bg-gray-50 transition-colors"
-                      title="Cari Resi"
+                      className="h-11 w-11 sm:h-12 sm:w-12 bg-white dark:bg-white/[0.05] dark:backdrop-blur-lg border border-gray-200 dark:border-white/10 rounded-2xl flex items-center justify-center text-gray-700 dark:text-white shadow-sm hover:bg-gray-50 dark:hover:bg-white/10 transition-colors duration-500"
                     >
                       <Search size={20} />
                     </button>
@@ -610,17 +597,15 @@
                   {packages.length > 0 && (
                     <div className="relative">
                       <button 
-                        className="h-11 w-11 sm:h-12 sm:w-12 bg-white border border-gray-200 rounded-2xl flex items-center justify-center text-gray-700 shadow-sm hover:bg-gray-50 transition-colors"
-                        title="Urutkan"
+                        className="h-11 w-11 sm:h-12 sm:w-12 bg-white dark:bg-white/[0.05] dark:backdrop-blur-lg border border-gray-200 dark:border-white/10 rounded-2xl flex items-center justify-center text-gray-700 dark:text-white shadow-sm hover:bg-gray-50 dark:hover:bg-white/10 transition-colors duration-500"
                       >
                         <Filter size={20} />
-                        {/* Indikator Titik Merah jika Filter aktif (bukan Terlama) */}
-                        {sortBy !== 'oldest' && <div className="absolute top-2.5 right-2.5 h-2 w-2 rounded-full bg-red-500 border border-white"></div>}
+                        {sortBy !== 'oldest' && <div className="absolute top-2.5 right-2.5 h-2 w-2 rounded-full bg-red-500 border border-white dark:border-transparent"></div>}
                       </button>
                       <select
                         value={sortBy}
                         onChange={(e) => setSortBy(e.target.value)}
-                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer dark:bg-[#0a071d] dark:text-white"
                       >
                         <option value="oldest">Terlama</option>
                         <option value="newest">Terbaru</option>
@@ -631,8 +616,7 @@
 
                   <button 
                     onClick={() => setIsModalOpen(true)}
-                    className="bg-black hover:bg-gray-800 text-white h-11 w-11 sm:h-12 sm:w-12 rounded-2xl flex items-center justify-center transition-transform active:scale-95 shadow-md shrink-0"
-                    title="Tambah Resi Baru"
+                    className="bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-gray-200 text-white dark:text-black h-11 w-11 sm:h-12 sm:w-12 rounded-2xl flex items-center justify-center transition-transform active:scale-95 shadow-md shrink-0 duration-500"
                   >
                     <Plus size={24} strokeWidth={3} />
                   </button>
@@ -646,18 +630,20 @@
             
             <div className="space-y-4">
               {filteredAndSortedPackages.length === 0 ? (
-                <div className="text-center py-20 bg-white border-2 border-dashed border-gray-200 rounded-[32px]">
-                  <div className="inline-flex items-center justify-center h-16 w-16 rounded-full bg-gray-50 mb-4">
-                    <Package size={28} className="text-gray-300" />
+                <div className="relative text-center py-20 bg-white dark:bg-white/[0.02] dark:backdrop-blur-xl border-2 border-dashed border-gray-200 dark:border-white/10 rounded-[32px] overflow-hidden transition-colors duration-500">
+                  <div className="relative z-10">
+                    <div className="inline-flex items-center justify-center h-16 w-16 rounded-full bg-gray-50 dark:bg-white/5 mb-4 transition-colors duration-500">
+                      <Package size={28} className="text-gray-300 dark:text-gray-500" />
+                    </div>
+                    <p className="text-gray-500 dark:text-gray-400 font-semibold mb-2 transition-colors duration-500">
+                      {packages.length === 0 ? "Belum ada paket yang dilacak." : "Paket tidak ditemukan."}
+                    </p>
+                    {packages.length === 0 && (
+                      <button onClick={() => setIsModalOpen(true)} className="text-black dark:text-white font-black text-sm hover:underline transition-colors duration-500">
+                        Tekan tombol + untuk menambah
+                      </button>
+                    )}
                   </div>
-                  <p className="text-gray-500 font-semibold mb-2">
-                    {packages.length === 0 ? "Belum ada paket yang dilacak." : "Paket tidak ditemukan."}
-                  </p>
-                  {packages.length === 0 && (
-                    <button onClick={() => setIsModalOpen(true)} className="text-black font-black text-sm hover:underline">
-                      Tekan tombol + untuk menambah
-                    </button>
-                  )}
                 </div>
               ) : (
                 <div>
@@ -666,36 +652,57 @@
                       key={pkg.awb} 
                       pkg={pkg} 
                       onRemove={requestRemovePackage}
-                      onRefresh={handleRefreshPackage}
                     />
                   ))}
                 </div>
               )}
             </div>
             
-            <div className="mt-12 text-center text-[10px] text-gray-400 font-medium">
+            <div className="mt-12 mb-8 flex flex-col items-center justify-center gap-6 text-[10px] text-gray-400 dark:text-gray-500 font-medium">
               <p>Dibuat oleh Fajar Jayadi</p>
-            </div>
+              
+              {/* TOMBOL TEMA (FULL WIDTH SLIDING SWITCH - BULAT PENUH) */}
+              <div className="w-full relative p-1.5 bg-gray-100 dark:bg-white/5 dark:backdrop-blur-xl rounded-full flex items-center border border-gray-200 dark:border-white/10 transition-colors duration-500">
+                {/* Latar Belakang Geser (Pill) */}
+                <div 
+                  className="absolute top-1.5 bottom-1.5 w-[calc(50%-6px)] bg-white dark:bg-white/10 border border-gray-200 dark:border-white/10 rounded-full shadow-sm dark:shadow-lg transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)]"
+                  style={{ left: theme === 'dark' ? 'calc(50% + 3px)' : '6px' }}
+                ></div>
+                
+                <button 
+                  onClick={() => setTheme('light')}
+                  className={`flex-1 flex items-center justify-center gap-2 py-3.5 z-10 text-[11px] uppercase tracking-wider font-bold transition-colors duration-500 ${theme === 'light' ? 'text-black' : 'text-gray-500 hover:text-gray-300'}`}
+                >
+                  <Sun size={14} strokeWidth={2.5} /> Mode Terang
+                </button>
+                
+                <button 
+                  onClick={() => setTheme('dark')}
+                  className={`flex-1 flex items-center justify-center gap-2 py-3.5 z-10 text-[11px] uppercase tracking-wider font-bold transition-colors duration-500 ${theme === 'dark' ? 'text-white' : 'text-gray-400 hover:text-gray-300'}`}
+                >
+                  <Moon size={14} strokeWidth={2.5} /> Mode Gelap
+                </button>
+              </div>
 
+            </div>
           </div>
 
           {/* MAIN ADD PACKAGE MODAL */}
           {isModalOpen && (
-            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center sm:p-4">
-              <div className="bg-white rounded-t-[32px] sm:rounded-[32px] shadow-2xl w-full max-w-lg overflow-hidden flex flex-col transform transition-all animate-in slide-in-from-bottom-8 sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-300">
-                <div className="px-6 py-5 border-b border-gray-100 flex justify-between items-center bg-white">
-                  <h3 className="font-black text-xl text-gray-900 tracking-tight">Lacak Resi Baru</h3>
-                  <button onClick={() => setIsModalOpen(false)} className="p-2 -mr-2 text-gray-400 hover:text-black hover:bg-gray-100 rounded-full transition-colors bg-gray-50">
+            <div className="fixed inset-0 bg-black/60 dark:bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center sm:p-4">
+              <div className="relative bg-white dark:bg-[#0a071d]/80 dark:backdrop-blur-3xl dark:border dark:border-white/10 rounded-t-[32px] sm:rounded-[32px] shadow-2xl w-full max-w-lg overflow-hidden flex flex-col transform transition-all animate-in slide-in-from-bottom-8 sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-500">
+                <div className="relative z-10 px-6 py-5 border-b border-gray-100 dark:border-white/10 flex justify-between items-center bg-white dark:bg-transparent transition-colors duration-500">
+                  <h3 className="font-black text-xl text-gray-900 dark:text-white tracking-tight">Lacak Resi Baru</h3>
+                  <button onClick={() => setIsModalOpen(false)} className="p-2 -mr-2 text-gray-400 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 rounded-full transition-colors bg-gray-50 dark:bg-white/5">
                     <X size={20} strokeWidth={3} />
                   </button>
                 </div>
                 
-                <div className="p-6">
+                <div className="relative z-10 p-6">
                   <form onSubmit={handleAddPackage} className="flex flex-col gap-5">
-                    
                     <div className="space-y-5">
                       <div className="relative">
-                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 ml-1">Nomor Resi</label>
+                        <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2 ml-1 transition-colors duration-500">Nomor Resi</label>
                         <div className="relative">
                           <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400">
                             <Search size={20} />
@@ -705,7 +712,7 @@
                             value={inputValue}
                             onChange={(e) => setInputValue(e.target.value)}
                             placeholder="Contoh: JP8391283..."
-                            className="w-full pl-12 pr-4 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:bg-white focus:ring-2 focus:ring-black focus:border-black transition-all outline-none text-gray-900 placeholder-gray-400 font-mono font-bold text-sm sm:text-base"
+                            className="w-full pl-12 pr-4 py-4 bg-gray-50 dark:bg-white/[0.05] dark:backdrop-blur-xl border border-gray-200 dark:border-white/10 rounded-2xl focus:bg-white dark:focus:bg-white/10 focus:ring-2 focus:ring-black dark:focus:ring-white focus:border-black dark:focus:border-transparent transition-all outline-none text-gray-900 dark:text-white placeholder-gray-400 font-mono font-bold text-sm sm:text-base duration-500"
                             required
                             autoFocus
                           />
@@ -713,21 +720,21 @@
                       </div>
 
                       <div>
-                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 ml-1">Pilih Kurir</label>
+                        <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2 ml-1 transition-colors duration-500">Pilih Kurir</label>
                         <select
                           value={selectedCourier}
                           onChange={(e) => setSelectedCourier(e.target.value)}
-                          className="w-full px-4 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:bg-white focus:ring-2 focus:ring-black focus:border-black transition-all outline-none text-gray-900 appearance-none cursor-pointer font-bold text-sm sm:text-base"
-                          style={{ backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23000' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`, backgroundPosition: 'right 1rem center', backgroundRepeat: 'no-repeat', backgroundSize: '1.2em 1.2em' }}
+                          className="w-full px-4 py-4 bg-gray-50 dark:bg-[#0a071d] border border-gray-200 dark:border-white/10 rounded-2xl focus:bg-white dark:focus:bg-[#150f38] focus:ring-2 focus:ring-black dark:focus:ring-white focus:border-black transition-all outline-none text-gray-900 dark:text-white appearance-none cursor-pointer font-bold text-sm sm:text-base duration-500"
+                          style={{ backgroundImage: theme === 'dark' ? `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23fff' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")` : `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23000' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`, backgroundPosition: 'right 1rem center', backgroundRepeat: 'no-repeat', backgroundSize: '1.2em 1.2em' }}
                         >
                           {COURIERS.map(c => (
-                            <option key={c.id} value={c.id}>{c.name}</option>
+                            <option key={c.id} value={c.id} className="dark:bg-[#0a071d] dark:text-white">{c.name}</option>
                           ))}
                         </select>
                       </div>
 
                       <div>
-                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 ml-1">Nama Barang (Opsional)</label>
+                        <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2 ml-1 transition-colors duration-500">Nama Barang (Opsional)</label>
                         <div className="relative">
                           <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400">
                             <Package size={20} />
@@ -737,14 +744,14 @@
                             value={itemName}
                             onChange={(e) => setItemName(e.target.value)}
                             placeholder="Contoh: Sepatu Sneakers"
-                            className="w-full pl-12 pr-4 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:bg-white focus:ring-2 focus:ring-black focus:border-black transition-all outline-none text-gray-900 placeholder-gray-400 font-bold text-sm sm:text-base"
+                            className="w-full pl-12 pr-4 py-4 bg-gray-50 dark:bg-white/[0.05] dark:backdrop-blur-xl border border-gray-200 dark:border-white/10 rounded-2xl focus:bg-white dark:focus:bg-white/10 focus:ring-2 focus:ring-black dark:focus:ring-white focus:border-black dark:focus:border-transparent transition-all outline-none text-gray-900 dark:text-white placeholder-gray-400 font-bold text-sm sm:text-base duration-500"
                           />
                         </div>
                       </div>
                     </div>
 
                     {error && (
-                      <div className="flex items-start gap-2 text-red-600 bg-red-50 p-4 rounded-2xl text-sm border border-red-100 font-medium">
+                      <div className="flex items-start gap-2 text-red-600 dark:text-red-300 bg-red-50 dark:bg-red-500/20 p-4 rounded-2xl text-sm border border-red-100 dark:border-red-500/30 font-medium transition-colors duration-500">
                         <AlertCircle size={18} className="shrink-0 mt-0.5" />
                         {error}
                       </div>
@@ -754,8 +761,8 @@
                       <button
                         type="submit"
                         disabled={isLoading || !user}
-                        className={`w-full py-4 rounded-2xl font-black text-white transition-all transform active:scale-[0.98] shadow-lg ${
-                          isLoading || !user ? 'bg-gray-400 shadow-none' : 'bg-black hover:bg-gray-800 hover:shadow-xl'
+                        className={`w-full py-4 rounded-2xl font-black transition-all transform active:scale-[0.98] shadow-lg duration-500 ${
+                          isLoading || !user ? 'bg-gray-400 dark:bg-white/20 text-white dark:text-white/50 shadow-none' : 'bg-black dark:bg-white text-white dark:text-black hover:bg-gray-800 dark:hover:bg-gray-200 hover:shadow-xl'
                         } flex items-center justify-center gap-2 text-base`}
                       >
                         {isLoading ? (
@@ -765,8 +772,8 @@
                           </>
                         ) : (
                           <>
-                            Lacak Sekarang
-                            <Truck size={20} />
+                            Tambah ke Pantauan
+                            <Plus size={20} />
                           </>
                         )}
                       </button>
@@ -779,38 +786,38 @@
 
           {/* JNE VERIFICATION MODAL */}
           {isJneModalOpen && (
-            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center sm:p-4">
-              <div className="bg-white rounded-t-[32px] sm:rounded-[32px] shadow-2xl w-full max-w-md overflow-hidden flex flex-col transform transition-all animate-in slide-in-from-bottom-8 sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-300">
-                <div className="px-6 py-5 border-b border-gray-100 flex justify-between items-center bg-white">
-                  <h3 className="font-black text-xl text-gray-900 tracking-tight">Verifikasi JNE</h3>
-                  <button onClick={() => { setIsJneModalOpen(false); setJneError(''); }} className="p-2 -mr-2 text-gray-400 hover:text-black hover:bg-gray-100 rounded-full transition-colors bg-gray-50">
+            <div className="fixed inset-0 bg-black/60 dark:bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center sm:p-4">
+              <div className="relative bg-white dark:bg-[#0a071d]/80 dark:backdrop-blur-3xl dark:border dark:border-white/10 rounded-t-[32px] sm:rounded-[32px] shadow-2xl w-full max-w-md overflow-hidden flex flex-col transform transition-all animate-in slide-in-from-bottom-8 sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-500">
+                <div className="relative z-10 px-6 py-5 border-b border-gray-100 dark:border-white/10 flex justify-between items-center bg-white dark:bg-transparent transition-colors duration-500">
+                  <h3 className="font-black text-xl text-gray-900 dark:text-white tracking-tight">Verifikasi JNE</h3>
+                  <button onClick={() => { setIsJneModalOpen(false); setJneError(''); }} className="p-2 -mr-2 text-gray-400 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 rounded-full transition-colors bg-gray-50 dark:bg-white/5">
                     <X size={20} strokeWidth={3} />
                   </button>
                 </div>
                 
-                <div className="p-6">
-                  <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 mb-6">
-                    <p className="text-sm text-blue-900 font-medium leading-relaxed">
+                <div className="relative z-10 p-6">
+                  <div className="bg-blue-50 dark:bg-blue-500/20 border border-blue-100 dark:border-blue-500/30 rounded-2xl p-4 mb-6 transition-colors duration-500">
+                    <p className="text-sm text-blue-900 dark:text-blue-100 font-medium leading-relaxed">
                       Kurir JNE mewajibkan verifikasi demi keamanan. Masukkan <strong>4 - 5 digit terakhir</strong> dari nomor HP si penerima paket.
                     </p>
                   </div>
                   
                   <form onSubmit={handleJneSubmit} className="flex flex-col gap-5">
                     <div>
-                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 ml-1">Digit Terakhir HP Penerima</label>
+                      <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2 ml-1 transition-colors duration-500">Digit Terakhir HP Penerima</label>
                       <input
                         type="number"
                         value={phone}
                         onChange={(e) => setPhone(e.target.value)}
                         placeholder="Contoh: 8989"
-                        className="w-full px-5 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:bg-white focus:ring-2 focus:ring-black focus:border-black transition-all outline-none text-gray-900 placeholder-gray-400 font-mono font-bold text-lg text-center tracking-widest"
+                        className="w-full px-5 py-4 bg-gray-50 dark:bg-white/[0.05] dark:backdrop-blur-xl border border-gray-200 dark:border-white/10 rounded-2xl focus:bg-white dark:focus:bg-white/10 focus:ring-2 focus:ring-black dark:focus:ring-white focus:border-black dark:focus:border-transparent transition-all outline-none text-gray-900 dark:text-white placeholder-gray-400 font-mono font-bold text-lg text-center tracking-widest duration-500"
                         required
                         autoFocus
                       />
                     </div>
 
                     {jneError && (
-                      <div className="flex items-start gap-2 text-red-600 bg-red-50 p-4 rounded-2xl text-sm border border-red-100 font-medium">
+                      <div className="flex items-start gap-2 text-red-600 dark:text-red-300 bg-red-50 dark:bg-red-500/20 p-4 rounded-2xl text-sm border border-red-100 dark:border-red-500/30 font-medium transition-colors duration-500">
                         <AlertCircle size={18} className="shrink-0 mt-0.5" />
                         {jneError}
                       </div>
@@ -824,15 +831,15 @@
                           setIsModalOpen(true);
                           setJneError('');
                         }}
-                        className="flex-1 py-4 rounded-2xl font-black text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors"
+                        className="flex-1 py-4 rounded-2xl font-black text-gray-700 dark:text-white bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 transition-colors duration-500"
                       >
                         Kembali
                       </button>
                       <button
                         type="submit"
                         disabled={isLoading || !user}
-                        className={`flex-[1.5] py-4 rounded-2xl font-black text-white transition-all transform active:scale-[0.98] ${
-                          isLoading || !user ? 'bg-gray-400' : 'bg-[#004A98] hover:bg-blue-900 shadow-lg shadow-blue-900/20'
+                        className={`flex-[1.5] py-4 rounded-2xl font-black text-white transition-all transform active:scale-[0.98] duration-500 ${
+                          isLoading || !user ? 'bg-gray-400 dark:bg-white/20 text-white/50' : 'bg-[#004A98] dark:bg-blue-600 hover:bg-blue-900 dark:hover:bg-blue-500 shadow-lg'
                         } flex items-center justify-center gap-2`}
                       >
                         {isLoading ? (
@@ -852,28 +859,30 @@
 
           {/* DELETE CONFIRMATION MODAL */}
           {packageToDelete && (
-            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center sm:p-4">
-              <div className="bg-white rounded-t-[32px] sm:rounded-[32px] shadow-2xl w-full max-w-sm overflow-hidden flex flex-col transform transition-all animate-in slide-in-from-bottom-8 sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-300 p-6 text-center">
-                <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 mb-4">
-                  <Trash2 size={28} className="text-red-600" />
-                </div>
-                <h3 className="text-xl font-black text-gray-900 mb-2">Hapus Resi?</h3>
-                <p className="text-sm text-gray-500 mb-6 font-medium">
-                  Apakah Anda yakin ingin menghapus resi <strong className="text-gray-900">{packageToDelete}</strong> dari pantauan?
-                </p>
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => setPackageToDelete(null)}
-                    className="flex-1 py-3.5 rounded-2xl font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors"
-                  >
-                    Batal
-                  </button>
-                  <button
-                    onClick={confirmRemovePackage}
-                    className="flex-1 py-3.5 rounded-2xl font-bold text-white bg-red-600 hover:bg-red-700 transition-colors shadow-lg shadow-red-600/20"
-                  >
-                    Ya, Hapus
-                  </button>
+            <div className="fixed inset-0 bg-black/60 dark:bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center sm:p-4">
+              <div className="relative bg-white dark:bg-[#0a071d]/80 dark:backdrop-blur-3xl dark:border dark:border-white/10 rounded-t-[32px] sm:rounded-[32px] shadow-2xl w-full max-w-sm overflow-hidden flex flex-col transform transition-all animate-in slide-in-from-bottom-8 sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-500 p-6 text-center">
+                <div className="relative z-10">
+                  <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 dark:bg-red-500/20 mb-4 transition-colors duration-500">
+                    <Trash2 size={28} className="text-red-600 dark:text-red-400 transition-colors duration-500" />
+                  </div>
+                  <h3 className="text-xl font-black text-gray-900 dark:text-white mb-2 transition-colors duration-500">Hapus Resi?</h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-6 font-medium transition-colors duration-500">
+                    Apakah Anda yakin ingin menghapus resi <strong className="text-gray-900 dark:text-white">{packageToDelete}</strong> dari pantauan?
+                  </p>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => setPackageToDelete(null)}
+                      className="flex-1 py-3.5 rounded-2xl font-bold text-gray-700 dark:text-white bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 transition-colors duration-500"
+                    >
+                      Batal
+                    </button>
+                    <button
+                      onClick={confirmRemovePackage}
+                      className="flex-1 py-3.5 rounded-2xl font-bold text-white bg-red-600 hover:bg-red-700 transition-colors shadow-lg duration-500"
+                    >
+                      Ya, Hapus
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
