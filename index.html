@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>YEN BANGUNAN - Tracker Pesanan</title>
   
-  <!-- 0. PWA Meta Tags & Manifest -->
-  <meta name="theme-color" content="#ea580c">
+  <!-- 0. PWA Meta Tags & Manifest (TEMA PUTIH) -->
+  <meta name="theme-color" content="#ffffff">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="YEN Tracker">
@@ -77,7 +77,7 @@
     import { 
       Package, Truck, CheckCircle, Clock, RefreshCw, Trash2, 
       Search, AlertCircle, MapPin, X, Plus, Navigation, Filter, Moon, Sun, Zap, ArrowRight,
-      Download // Ikon Download untuk PWA Install
+      Download // <-- Ikon Download untuk Instalasi PWA
     } from 'https://esm.sh/lucide-react@0.263.1';
     
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
@@ -401,19 +401,28 @@
       // PWA Install Prompt Listener
       useEffect(() => {
         const handleBeforeInstallPrompt = (e) => {
-          e.preventDefault(); // Mencegah popup mini-infobar default browser
-          setInstallPrompt(e); // Menyimpan event agar bisa kita panggil lewat tombol
+          // Mencegah popup default browser
+          e.preventDefault();
+          // Menyimpan event agar bisa kita panggil lewat tombol
+          setInstallPrompt(e);
         };
+        
         window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
         return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
       }, []);
 
       const handleInstallApp = async () => {
         if (!installPrompt) return;
+        
+        // Memunculkan native dialog dari browser
         installPrompt.prompt();
         const { outcome } = await installPrompt.userChoice;
+        
         if (outcome === 'accepted') {
+          console.log('User accepted the A2HS prompt');
           setInstallPrompt(null);
+        } else {
+          console.log('User dismissed the A2HS prompt');
         }
       };
 
@@ -614,7 +623,7 @@
                       style={{ fontFamily: "'Bebas Neue', sans-serif", paddingTop: '2px' }}
                     >
                       YEN BANGUNAN
-                      <span className="bg-bg-gray-200 dark:bg-[#130d0a] text-gray-600 dark:text-white px-2.5 py-0.5 rounded-full text-sm font-sans font-semibold tracking-normal flex items-center gap-1.5 dark:border dark:border-[#2a1b15]" style={{ paddingTop: '0' }}>
+                      <span className="bg-gray-200 dark:bg-[#130d0a] text-gray-600 dark:text-white px-2.5 py-0.5 rounded-full text-sm font-sans font-semibold tracking-normal flex items-center gap-1.5 dark:border dark:border-[#2a1b15]" style={{ paddingTop: '0' }}>
                         {packages.length}
                         {isAutoSyncing && <RefreshCw size={12} className="animate-spin text-gray-400 dark:text-gray-500" />}
                       </span>
