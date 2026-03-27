@@ -1,10 +1,10 @@
-const CACHE_NAME = 'yen-tracker-v3';
+const CACHE_NAME = 'yen-tracker-v4';
 const urlsToCache = [
-  '/',
-  '/index.html',
-  '/manifest.json',
-  '/icon-192.png',
-  '/icon-512.png'
+  './',
+  './index.html',
+  './manifest.json',
+  './icon-192.png',
+  './icon-512.png'
 ];
 
 // 1. Install Service Worker & Cache assets
