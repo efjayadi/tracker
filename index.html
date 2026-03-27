@@ -5,60 +5,27 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>YEN BANGUNAN - Tracker Pesanan</title>
   
-  <!-- 0. PWA Meta Tags (Khusus iOS/Mobile) -->
+  <!-- 0. PWA Meta Tags & Manifest -->
   <meta name="theme-color" content="#ea580c">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="YEN Tracker">
-  <link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIiBmaWxsPSJ3aGl0ZSI+PHJlY3Qgd2lkdGg9IjUxMiIgaGVpZ2h0PSI1MTIiIHJ4PSIxMTIiIGZpbGw9IiNmOTczMTYiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1zaXplPSIyMDAiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIiBmb250LXdlaWdodD0iYm9sZCI+WUVOPC90ZXh0Pjwvc3ZnPg==">
+  <link rel="apple-touch-icon" href="/icon-192.png">
+  <link rel="manifest" href="/manifest.json">
 
-  <!-- 1. PWA Setup (Manifest & Service Worker secara Dinamis) -->
+  <!-- 1. Service Worker Registration -->
   <script>
-    (function setupPWA() {
-      // Base64 SVG Icon (Logo YEN)
-      const iconBase64 = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIiBmaWxsPSJ3aGl0ZSI+PHJlY3Qgd2lkdGg9IjUxMiIgaGVpZ2h0PSI1MTIiIHJ4PSIxMTIiIGZpbGw9IiNmOTczMTYiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1zaXplPSIyMDAiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIiBmb250LXdlaWdodD0iYm9sZCI+WUVOPC90ZXh0Pjwvc3ZnPg==";
-
-      // Buat Manifest secara on-the-fly
-      const manifest = {
-        name: "YEN BANGUNAN - Tracker Pesanan",
-        short_name: "YEN Tracker",
-        start_url: window.location.pathname || "/",
-        display: "standalone",
-        background_color: "#F8FAFC",
-        theme_color: "#ea580c",
-        icons: [
-          { src: iconBase64, sizes: "192x192", type: "image/svg+xml" },
-          { src: iconBase64, sizes: "512x512", type: "image/svg+xml" }
-        ]
-      };
-
-      const manifestBlob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
-      const manifestUrl = URL.createObjectURL(manifestBlob);
-      const link = document.createElement('link');
-      link.rel = 'manifest';
-      link.href = manifestUrl;
-      document.head.appendChild(link);
-
-      // Buat Service Worker secara on-the-fly (Persyaratan PWA standar)
-      const swCode = `
-        const CACHE_NAME = 'yen-tracker-v1';
-        self.addEventListener('install', e => self.skipWaiting());
-        self.addEventListener('activate', e => e.waitUntil(clients.claim()));
-        self.addEventListener('fetch', e => {
-          if (e.request.method !== 'GET') return;
-          e.respondWith(
-            fetch(e.request).catch(() => caches.match(e.request))
-          );
-        });
-      `;
-      const swBlob = new Blob([swCode], { type: 'application/javascript' });
-      const swUrl = URL.createObjectURL(swBlob);
-
-      // Register SW jika dijalankan via http/https
-      if ('serviceWorker' in navigator && window.location.protocol !== 'file:') {
-        window.addEventListener('load', () => navigator.serviceWorker.register(swUrl));
-      }
-    })();
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/service-worker.js')
+          .then(registration => {
+            console.log('ServiceWorker terdaftar dengan scope: ', registration.scope);
+          })
+          .catch(err => {
+            console.log('ServiceWorker gagal mendaftar: ', err);
+          });
+      });
+    }
   </script>
 
   <!-- 2. Tailwind CSS -->
