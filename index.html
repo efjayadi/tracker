@@ -5,10 +5,66 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>YEN BANGUNAN - Tracker Pesanan</title>
   
-  <!-- 1. Tailwind CSS (HARUS DIMUAT PERTAMA) -->
+  <!-- 0. PWA Meta Tags (Khusus iOS/Mobile) -->
+  <meta name="theme-color" content="#ea580c">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="YEN Tracker">
+  <link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIiBmaWxsPSJ3aGl0ZSI+PHJlY3Qgd2lkdGg9IjUxMiIgaGVpZ2h0PSI1MTIiIHJ4PSIxMTIiIGZpbGw9IiNmOTczMTYiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1zaXplPSIyMDAiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIiBmb250LXdlaWdodD0iYm9sZCI+WUVOPC90ZXh0Pjwvc3ZnPg==">
+
+  <!-- 1. PWA Setup (Manifest & Service Worker secara Dinamis) -->
+  <script>
+    (function setupPWA() {
+      // Base64 SVG Icon (Logo YEN)
+      const iconBase64 = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIiBmaWxsPSJ3aGl0ZSI+PHJlY3Qgd2lkdGg9IjUxMiIgaGVpZ2h0PSI1MTIiIHJ4PSIxMTIiIGZpbGw9IiNmOTczMTYiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1zaXplPSIyMDAiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIiBmb250LXdlaWdodD0iYm9sZCI+WUVOPC90ZXh0Pjwvc3ZnPg==";
+
+      // Buat Manifest secara on-the-fly
+      const manifest = {
+        name: "YEN BANGUNAN - Tracker Pesanan",
+        short_name: "YEN Tracker",
+        start_url: window.location.pathname || "/",
+        display: "standalone",
+        background_color: "#F8FAFC",
+        theme_color: "#ea580c",
+        icons: [
+          { src: iconBase64, sizes: "192x192", type: "image/svg+xml" },
+          { src: iconBase64, sizes: "512x512", type: "image/svg+xml" }
+        ]
+      };
+
+      const manifestBlob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
+      const manifestUrl = URL.createObjectURL(manifestBlob);
+      const link = document.createElement('link');
+      link.rel = 'manifest';
+      link.href = manifestUrl;
+      document.head.appendChild(link);
+
+      // Buat Service Worker secara on-the-fly (Persyaratan PWA standar)
+      const swCode = `
+        const CACHE_NAME = 'yen-tracker-v1';
+        self.addEventListener('install', e => self.skipWaiting());
+        self.addEventListener('activate', e => e.waitUntil(clients.claim()));
+        self.addEventListener('fetch', e => {
+          if (e.request.method !== 'GET') return;
+          e.respondWith(
+            fetch(e.request).catch(() => caches.match(e.request))
+          );
+        });
+      `;
+      const swBlob = new Blob([swCode], { type: 'application/javascript' });
+      const swUrl = URL.createObjectURL(swBlob);
+
+      // Register SW jika dijalankan via http/https
+      if ('serviceWorker' in navigator && window.location.protocol !== 'file:') {
+        window.addEventListener('load', () => navigator.serviceWorker.register(swUrl));
+      }
+    })();
+  </script>
+
+  <!-- 2. Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   
-  <!-- 2. Tailwind Configuration -->
+  <!-- 3. Tailwind Configuration -->
   <script>
     window.tailwind = {
       config: {
@@ -16,7 +72,6 @@
         theme: {
           extend: {
             fontFamily: {
-              // Menggunakan Inter sebagai font utama (mirip iOS San Francisco)
               sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'system-ui', 'sans-serif'],
             },
             animation: {
@@ -54,7 +109,8 @@
     import { createRoot } from 'https://esm.sh/react-dom@18.2.0/client';
     import { 
       Package, Truck, CheckCircle, Clock, RefreshCw, Trash2, 
-      Search, AlertCircle, MapPin, X, Plus, Navigation, Filter, Moon, Sun, Zap, ArrowRight
+      Search, AlertCircle, MapPin, X, Plus, Navigation, Filter, Moon, Sun, Zap, ArrowRight,
+      Download // <-- Tambahkan Ikon Download
     } from 'https://esm.sh/lucide-react@0.263.1';
     
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
@@ -195,7 +251,6 @@
       };
 
       return {
-        // Bright Flame Background in Dark Mode with Glow
         className: `w-full py-1.5 px-1 rounded-lg bg-black dark:bg-gradient-to-br dark:from-orange-400 dark:to-red-600 dark:border-transparent text-white flex items-center justify-center font-black text-[10px] sm:text-xs shadow-sm dark:shadow-[0_0_15px_rgba(249,115,22,0.5)] tracking-tight leading-none`,
         label: labels[courierId] || 'PKG'
       };
@@ -242,7 +297,6 @@
       const etaDisplay = formatEtaBadge(pkg.eta);
 
       return (
-        // Hover Light Effect applied here
         <div className="group relative bg-white dark:bg-[#120a07] rounded-[24px] shadow-sm border border-gray-100 dark:border-[#2a1b15] overflow-hidden mb-2 transition-all duration-300 dark:hover:border-orange-500/50 dark:hover:shadow-[0_0_25px_rgba(249,115,22,0.15)]">
           <div className="relative z-10">
             <div 
@@ -347,6 +401,9 @@
       const [isAutoSyncing, setIsAutoSyncing] = useState(false);
       const processedAutoRefresh = useRef(new Set());
 
+      // PWA State (Mendengarkan siap untuk di-install)
+      const [installPrompt, setInstallPrompt] = useState(null);
+
       // Theme State (Dark Mode)
       const [theme, setTheme] = useState(() => {
         if (typeof window !== 'undefined') {
@@ -373,6 +430,25 @@
         window.addEventListener('scroll', handleScroll, { passive: true });
         return () => window.removeEventListener('scroll', handleScroll);
       }, []);
+
+      // PWA Install Prompt Listener
+      useEffect(() => {
+        const handleBeforeInstallPrompt = (e) => {
+          e.preventDefault(); // Mencegah popup mini-infobar default browser
+          setInstallPrompt(e); // Menyimpan event agar bisa kita panggil lewat tombol
+        };
+        window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+        return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      }, []);
+
+      const handleInstallApp = async () => {
+        if (!installPrompt) return;
+        installPrompt.prompt();
+        const { outcome } = await installPrompt.userChoice;
+        if (outcome === 'accepted') {
+          setInstallPrompt(null);
+        }
+      };
 
       // Firebase Auth
       useEffect(() => {
@@ -526,11 +602,11 @@
             isScrolled ? 'backdrop-blur-md bg-white/90 dark:bg-[#080302]/80 border-b border-gray-200 dark:border-white/10' : 'bg-transparent'
           }`}>
             <div className="max-w-2xl mx-auto relative z-10">
-              <div className="flex items-center justify-between px-1 h-11 sm:h-12">
+              <div className="flex items-center justify-between px-1 h-11 sm:h-12 gap-2">
                 
                 {/* Bagian Kiri: Search Bar ATAU Judul Dinamis */}
                 {isSearchActive ? (
-                  <div className="flex-1 relative flex items-center h-full transition-all animate-in fade-in slide-in-from-left-4 duration-300 mr-2">
+                  <div className="flex-1 relative flex items-center h-full transition-all animate-in fade-in slide-in-from-left-4 duration-300">
                     <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
                       <Search size={18} />
                     </div>
@@ -583,6 +659,17 @@
                 {/* Bagian Kanan: Ikon */}
                 <div className="flex items-center gap-2 shrink-0">
                   
+                  {/* PWA Install Button (Hanya tampil jika device mengizinkan instalasi) */}
+                  {installPrompt && !isSearchActive && (
+                    <button 
+                      onClick={handleInstallApp}
+                      className="bg-orange-500 hover:bg-orange-600 text-white h-11 w-11 sm:h-12 sm:w-12 rounded-2xl flex items-center justify-center transition-transform active:scale-95 shadow-md shrink-0 border border-orange-400 dark:border-transparent animate-pulse"
+                      title="Install Aplikasi PWA"
+                    >
+                      <Download size={20} strokeWidth={2.5} />
+                    </button>
+                  )}
+
                   {!isSearchActive && packages.length > 0 && (
                     <button 
                       onClick={() => setIsSearchActive(true)}
