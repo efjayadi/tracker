@@ -10,14 +10,14 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="YEN Tracker">
-  <link rel="apple-touch-icon" href="/icon-192.png">
-  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="./icon-192.png">
+  <link rel="manifest" href="./manifest.json">
 
-  <!-- 1. Service Worker Registration -->
+  <!-- 1. Service Worker Registration & Global PWA Catcher -->
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/service-worker.js')
+        navigator.serviceWorker.register('./service-worker.js')
           .then(registration => {
             console.log('ServiceWorker terdaftar dengan scope: ', registration.scope);
           })
@@ -26,6 +26,15 @@
           });
       });
     }
+
+    // GLOBAL PWA PROMPT CATCHER (Menangkap event sebelum React me-render)
+    window.deferredPrompt = null;
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      window.deferredPrompt = e;
+      // Beritahu React bahwa PWA siap
+      window.dispatchEvent(new Event('pwa-ready'));
+    });
   </script>
 
   <!-- 2. Tailwind CSS -->
@@ -398,17 +407,34 @@
         return () => window.removeEventListener('scroll', handleScroll);
       }, []);
 
-      // PWA Install Prompt Listener
+      // PWA Install Prompt Listener (Diperbarui)
       useEffect(() => {
+        // 1. Cek apakah event sudah ditangkap oleh Global Catcher di atas
+        if (window.deferredPrompt) {
+          setInstallPrompt(window.deferredPrompt);
+        }
+
+        // 2. Listener jika event muncul setelah React mount
         const handleBeforeInstallPrompt = (e) => {
-          // Mencegah popup default browser
           e.preventDefault();
-          // Menyimpan event agar bisa kita panggil lewat tombol
+          window.deferredPrompt = e;
           setInstallPrompt(e);
+        };
+
+        // 3. Listener untuk custom event dari Global Catcher
+        const handlePwaReady = () => {
+          if (window.deferredPrompt) {
+            setInstallPrompt(window.deferredPrompt);
+          }
         };
         
         window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-        return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+        window.addEventListener('pwa-ready', handlePwaReady);
+        
+        return () => {
+          window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+          window.removeEventListener('pwa-ready', handlePwaReady);
+        };
       }, []);
 
       const handleInstallApp = async () => {
@@ -420,10 +446,13 @@
         
         if (outcome === 'accepted') {
           console.log('User accepted the A2HS prompt');
-          setInstallPrompt(null);
         } else {
           console.log('User dismissed the A2HS prompt');
         }
+        
+        // Reset state setelah pop-up dijawab
+        setInstallPrompt(null);
+        window.deferredPrompt = null;
       };
 
       // Firebase Auth
