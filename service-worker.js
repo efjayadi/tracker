@@ -1,4 +1,4 @@
-const CACHE_NAME = 'yen-tracker-v2';
+const CACHE_NAME = 'yen-tracker-v3';
 const urlsToCache = [
   '/',
   '/index.html',
@@ -7,7 +7,7 @@ const urlsToCache = [
   '/icon-512.png'
 ];
 
-// Install Service Worker & Cache assets
+// 1. Install Service Worker & Cache assets
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
@@ -19,13 +19,14 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
-// Activate & Hapus cache versi lama
+// 2. Activate & Hapus cache versi lama
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
           if (cacheName !== CACHE_NAME) {
+            console.log('Deleting old cache:', cacheName);
             return caches.delete(cacheName);
           }
         })
@@ -35,7 +36,7 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Fetching network (Cache fallback untuk offline)
+// 3. Fetching network (Cache fallback untuk offline mode)
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
   
