@@ -44,7 +44,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   
 </head>
-<body class="bg-[#F8FAFC] dark:bg-[#05030a] text-gray-900 dark:text-white antialiased selection:bg-black selection:text-white dark:selection:bg-white dark:selection:text-black transition-colors duration-300">
+<body class="bg-[#F8FAFC] dark:bg-[#080302] text-gray-900 dark:text-white antialiased selection:bg-black selection:text-white dark:selection:bg-white dark:selection:text-black transition-colors duration-300">
   
   <div id="root"></div>
 
@@ -54,7 +54,7 @@
     import { createRoot } from 'https://esm.sh/react-dom@18.2.0/client';
     import { 
       Package, Truck, CheckCircle, Clock, RefreshCw, Trash2, 
-      Search, AlertCircle, MapPin, X, Plus, Navigation, Filter, Moon, Sun
+      Search, AlertCircle, MapPin, X, Plus, Navigation, Filter, Moon, Sun, Zap, ArrowRight
     } from 'https://esm.sh/lucide-react@0.263.1';
     
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
@@ -88,7 +88,6 @@
     // ==========================================
     const COURIERS = [
       { id: 'jnt', name: 'J&T Express' },
-      { id: 'jne', name: 'JNE' },
       { id: 'sicepat', name: 'SiCepat Ekspres' },
       { id: 'anteraja', name: 'AnterAja' },
       { id: 'spx', name: 'Shopee Express (SPX)' },
@@ -98,11 +97,11 @@
 
     const BINDERBYTE_API_KEY = '6e697e720e51b107214b6fde2d467f5b7f70d644be1cb1403bcd4d9cec109ba2';
 
-    const fetchTrackingFromAPI = async (awb, courier, itemName = '', phone = '') => {
+    const fetchTrackingFromAPI = async (awb, courier, itemName = '') => {
       if (awb.length < 5) throw new Error("Nomor resi tidak valid. Minimal 5 karakter.");
 
       try {
-        const targetUrl = `https://api.binderbyte.com/v1/track?api_key=${BINDERBYTE_API_KEY}&courier=${courier}&awb=${awb}&phone=${phone}&_t=${Date.now()}`;
+        const targetUrl = `https://api.binderbyte.com/v1/track?api_key=${BINDERBYTE_API_KEY}&courier=${courier}&awb=${awb}&_t=${Date.now()}`;
         
         const proxies = [
           `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`,
@@ -145,11 +144,13 @@
           timestamp: h.date,
         }));
 
+        const rawEta = data.summary.eta || (data.detail && data.detail.eta) || '';
+
         return {
           awb: data.summary.awb,
           courier,
           itemName,
-          phone,
+          eta: rawEta,
           status: mappedStatus,
           timeline,
           addedAt: new Date().toISOString(),
@@ -166,11 +167,11 @@
     // ==========================================
     const getStatusConfig = (status) => {
       const configs = {
-        'DELIVERED': { color: 'bg-black dark:bg-violet-700 text-white dark:text-white border-black dark:border-violet-700', icon: CheckCircle, label: 'Tiba' },
-        'DELIVERING': { color: 'bg-gray-800 dark:bg-violet-800 text-white dark:text-white border-gray-800 dark:border-violet-800', icon: Navigation, label: 'Out for delivery' },
-        'TRANSIT': { color: 'bg-gray-600 dark:bg-violet-700/30 text-white dark:text-violet-100 border-gray-600 dark:border-violet-500/50', icon: Truck, label: 'Transit' },
-        'PICKUP': { color: 'bg-gray-200 dark:bg-violet-600/20 text-gray-800 dark:text-violet-300 border-gray-300 dark:border-violet-500/40', icon: Package, label: 'Picked up' },
-        'PENDING': { color: 'bg-white dark:bg-[#1a162b] text-gray-600 dark:text-gray-400 border-gray-200 dark:border-[#2a2442]', icon: Clock, label: 'Pending' },
+        'DELIVERED': { color: 'bg-black dark:bg-orange-500 text-white dark:text-black border-black dark:border-orange-400 dark:shadow-[0_0_12px_rgba(249,115,22,0.6)]', icon: CheckCircle, label: 'Tiba' },
+        'DELIVERING': { color: 'bg-gray-800 dark:bg-orange-600 text-white dark:text-white border-gray-800 dark:border-orange-500', icon: Navigation, label: 'Out for delivery' },
+        'TRANSIT': { color: 'bg-gray-600 dark:bg-orange-500/30 text-white dark:text-orange-100 border-gray-600 dark:border-orange-500/50', icon: Truck, label: 'Transit' },
+        'PICKUP': { color: 'bg-gray-200 dark:bg-orange-500/20 text-gray-800 dark:text-orange-200 border-gray-300 dark:border-orange-500/40', icon: Package, label: 'Picked up' },
+        'PENDING': { color: 'bg-white dark:bg-[#1f140f] text-gray-600 dark:text-gray-400 border-gray-200 dark:border-[#382015]', icon: Clock, label: 'Pending' },
       };
       return configs[status] || configs['PENDING'];
     };
@@ -180,7 +181,7 @@
       const Icon = config.icon;
 
       return (
-        <span className={`flex items-center justify-center gap-0.5 px-1 py-0.5 rounded-full text-[8px] sm:text-[9px] font-medium border ${config.color} tracking-tight w-full shadow-sm`}>
+        <span className={`flex items-center justify-center gap-0.5 px-1 py-0.5 rounded-full text-[8px] sm:text-[9px] font-bold border ${config.color} tracking-tight w-full shadow-sm transition-all duration-300`}>
           <Icon size={9} strokeWidth={2.5} className="shrink-0" />
           <span className="truncate leading-none pt-[1px]">{config.label}</span>
         </span>
@@ -190,11 +191,12 @@
     const getCourierStyle = (courierId) => {
       const labels = {
         'spx': 'SPX', 'jnt': 'J&T', 'sicepat': 'SiCepat', 'anteraja': 'AnterAja',
-        'idexpress': 'ID', 'ninja': 'NIN', 'jne': 'JNE'
+        'idexpress': 'ID', 'ninja': 'NIN'
       };
 
       return {
-        className: `w-full py-1.5 px-1 rounded-lg bg-black dark:bg-[#1f1a36] dark:border dark:border-[#2a2442] text-white flex items-center justify-center font-black text-[10px] sm:text-xs shadow-sm tracking-tight leading-none`,
+        // Bright Flame Background in Dark Mode with Glow
+        className: `w-full py-1.5 px-1 rounded-lg bg-black dark:bg-gradient-to-br dark:from-orange-400 dark:to-red-600 dark:border-transparent text-white flex items-center justify-center font-black text-[10px] sm:text-xs shadow-sm dark:shadow-[0_0_15px_rgba(249,115,22,0.5)] tracking-tight leading-none`,
         label: labels[courierId] || 'PKG'
       };
     };
@@ -205,6 +207,15 @@
         : pkg.addedAt;
       const parsedDate = new Date((dateString || '').replace(' ', 'T'));
       return isNaN(parsedDate.getTime()) ? new Date(pkg.addedAt).getTime() : parsedDate.getTime();
+    };
+
+    const formatEtaBadge = (etaStr) => {
+      if (!etaStr) return null;
+      const d = new Date(etaStr.replace(' ', 'T'));
+      if (!isNaN(d.getTime())) {
+        return new Intl.DateTimeFormat('id-ID', { day: 'numeric', month: 'short' }).format(d);
+      }
+      return etaStr; 
     };
 
     const PackageCapsule = ({ pkg, onRemove, isExpanded, onToggleExpand }) => {
@@ -228,9 +239,11 @@
       };
 
       const displayTitle = pkg.itemName ? pkg.itemName : `Paket ${courierAvatar.label}`;
+      const etaDisplay = formatEtaBadge(pkg.eta);
 
       return (
-        <div className="relative bg-white dark:bg-[#131024] rounded-[24px] shadow-sm border border-gray-100 dark:border-[#231d3b] overflow-hidden mb-2">
+        // Hover Light Effect applied here
+        <div className="group relative bg-white dark:bg-[#120a07] rounded-[24px] shadow-sm border border-gray-100 dark:border-[#2a1b15] overflow-hidden mb-2 transition-all duration-300 dark:hover:border-orange-500/50 dark:hover:shadow-[0_0_25px_rgba(249,115,22,0.15)]">
           <div className="relative z-10">
             <div 
               className="px-3 py-2.5 sm:px-4 sm:py-3 cursor-pointer flex flex-row items-stretch justify-between gap-3"
@@ -238,16 +251,16 @@
             >
               <div className="flex flex-col items-stretch justify-center gap-1 shrink-0 w-[60px] sm:w-[68px]">
                 <div className={courierAvatar.className}>
-                  <span className="truncate">{courierAvatar.label}</span>
+                  <span className="truncate">{etaDisplay ? etaDisplay : courierAvatar.label}</span>
                 </div>
                 <StatusBadge status={pkg.status} />
               </div>
 
               <div className="flex-1 min-w-0 flex flex-col justify-center">
-                <span className="text-[8px] sm:text-[9px] text-gray-400 dark:text-gray-400/80 font-medium mb-0.5 tracking-wider uppercase">
+                <span className="text-[8px] sm:text-[9px] text-gray-400 dark:text-gray-500 font-medium mb-0.5 tracking-wider uppercase group-hover:dark:text-orange-400/80 transition-colors">
                   {formatDate(firstEventDate)}
                 </span>
-                <h3 className="font-bold text-gray-900 dark:text-white text-sm sm:text-base leading-tight break-words whitespace-normal mb-1 tracking-tight">
+                <h3 className="font-bold text-gray-900 dark:text-white text-sm sm:text-base leading-tight break-words whitespace-normal mb-1 tracking-tight group-hover:dark:text-orange-50 transition-colors">
                   {displayTitle}
                 </h3>
                 <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2 leading-snug font-medium">
@@ -255,7 +268,7 @@
                 </p>
               </div>
 
-              <div className="flex flex-col items-center justify-center border-l border-gray-100 dark:border-[#231d3b] pl-2 sm:pl-3 shrink-0">
+              <div className="flex flex-col items-center justify-center border-l border-gray-100 dark:border-[#2a1b15] pl-2 sm:pl-3 shrink-0 group-hover:dark:border-orange-500/30 transition-colors">
                 <button 
                   onClick={(e) => { e.stopPropagation(); onRemove(pkg); }}
                   className="p-2 rounded-xl text-gray-900 dark:text-gray-400 hover:text-white dark:hover:text-white hover:bg-red-500 dark:hover:bg-red-600 transition-colors"
@@ -267,36 +280,36 @@
             </div>
 
             {isExpanded && (
-              <div className="bg-gray-50 dark:bg-[#0a0714] p-4 sm:p-5 border-t border-gray-100 dark:border-[#231d3b]">
-                <div className="mb-5 bg-white dark:bg-[#131024] p-3 rounded-xl border border-gray-200 dark:border-[#231d3b] flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+              <div className="bg-gray-50 dark:bg-[#0a0503] p-4 sm:p-5 border-t border-gray-100 dark:border-[#2a1b15]">
+                <div className="mb-5 bg-white dark:bg-[#120a07] p-3 rounded-xl border border-gray-200 dark:border-[#2a1b15] flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
                   <div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 font-semibold uppercase tracking-wider mb-0.5">Nomor Resi</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-500 font-semibold uppercase tracking-wider mb-0.5">Nomor Resi</p>
                     <p className="font-mono text-sm font-semibold text-gray-900 dark:text-white">{pkg.awb}</p>
                   </div>
                   <div className="sm:text-right mt-2 sm:mt-0">
-                    <p className="text-xs text-gray-500 dark:text-gray-400 font-semibold uppercase tracking-wider mb-0.5">Kurir</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-500 font-semibold uppercase tracking-wider mb-0.5">Kurir</p>
                     <p className="text-sm font-semibold text-gray-900 dark:text-white">{courierNameFull}</p>
                   </div>
                 </div>
 
-                <h4 className="text-xs font-bold text-gray-400 dark:text-gray-500 mb-4 tracking-wider uppercase">Riwayat Perjalanan</h4>
-                <div className="relative border-l-2 border-gray-200 dark:border-[#231d3b] ml-3 space-y-6 pb-2">
+                <h4 className="text-xs font-bold text-gray-400 dark:text-gray-600 mb-4 tracking-wider uppercase">Riwayat Perjalanan</h4>
+                <div className="relative border-l-2 border-gray-200 dark:border-[#2a1b15] ml-3 space-y-6 pb-2">
                   {(pkg.timeline || []).map((event, index) => (
                     <div key={event.id || index} className="relative pl-6">
-                      <div className={`absolute -left-[9px] top-1 h-4 w-4 rounded-full border-2 ${index === 0 ? 'bg-black dark:bg-white ring-4 ring-gray-200 dark:ring-[#231d3b] border-white dark:border-[#131024]' : 'bg-gray-300 dark:bg-[#231d3b] border-gray-50 dark:border-[#0a0714]'}`}></div>
+                      <div className={`absolute -left-[9px] top-1 h-4 w-4 rounded-full border-2 ${index === 0 ? 'bg-black dark:bg-orange-500 ring-4 ring-gray-200 dark:ring-[#2a1b15] border-white dark:border-[#120a07] dark:shadow-[0_0_10px_rgba(249,115,22,0.5)]' : 'bg-gray-300 dark:bg-[#2a1b15] border-gray-50 dark:border-[#0a0503]'}`}></div>
                       
                       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-1.5">
                         <div className="pr-4">
-                          <p className={`text-sm leading-relaxed ${index === 0 ? 'font-semibold text-gray-900 dark:text-white' : 'text-gray-600 dark:text-gray-300 font-medium'}`}>
+                          <p className={`text-sm leading-relaxed ${index === 0 ? 'font-semibold text-gray-900 dark:text-orange-50' : 'text-gray-600 dark:text-gray-400 font-medium'}`}>
                             {event.description}
                           </p>
                           {event.location && (
-                            <p className="text-xs font-semibold text-black dark:text-gray-400 mt-1 flex items-center gap-1">
+                            <p className="text-xs font-semibold text-black dark:text-gray-500 mt-1 flex items-center gap-1">
                               <MapPin size={12} /> {event.location}
                             </p>
                           )}
                         </div>
-                        <span className="text-[11px] font-medium text-gray-400 dark:text-gray-500 whitespace-nowrap mt-1 sm:mt-0">
+                        <span className="text-[11px] font-medium text-gray-400 dark:text-gray-600 whitespace-nowrap mt-1 sm:mt-0">
                           {formatDate(event.timestamp)}
                         </span>
                       </div>
@@ -317,14 +330,11 @@
       const [packages, setPackages] = useState([]);
       const [inputValue, setInputValue] = useState('');
       const [itemName, setItemName] = useState('');
-      const [phone, setPhone] = useState('');
       const [selectedCourier, setSelectedCourier] = useState(COURIERS[0].id);
       const [isLoading, setIsLoading] = useState(false);
       const [error, setError] = useState('');
       const [user, setUser] = useState(null);
       const [isModalOpen, setIsModalOpen] = useState(false);
-      const [isJneModalOpen, setIsJneModalOpen] = useState(false);
-      const [jneError, setJneError] = useState('');
       
       const [searchQuery, setSearchQuery] = useState('');
       const [sortBy, setSortBy] = useState('oldest');
@@ -332,11 +342,12 @@
       const [isSearchActive, setIsSearchActive] = useState(false);
       const [isScrolled, setIsScrolled] = useState(false);
       const [expandedAwb, setExpandedAwb] = useState(null);
+      const [isSalesModalOpen, setIsSalesModalOpen] = useState(false);
       
       const [isAutoSyncing, setIsAutoSyncing] = useState(false);
       const processedAutoRefresh = useRef(new Set());
 
-      // Theme State (Dark Mode) - Default is strictly 'light'
+      // Theme State (Dark Mode)
       const [theme, setTheme] = useState(() => {
         if (typeof window !== 'undefined') {
           return localStorage.getItem('theme') || 'light';
@@ -412,7 +423,7 @@
             for (const pkg of packagesToRefresh) {
               try {
                 processedAutoRefresh.current.add(pkg.awb); 
-                const updatedData = await fetchTrackingFromAPI(pkg.awb, pkg.courier, pkg.itemName, pkg.phone);
+                const updatedData = await fetchTrackingFromAPI(pkg.awb, pkg.courier, pkg.itemName);
                 await setDoc(doc(db, 'tracked_packages', pkg.awb), updatedData, { merge: true });
               } catch (err) {}
               await new Promise(resolve => setTimeout(resolve, 1000));
@@ -426,24 +437,20 @@
         return () => clearInterval(intervalId);
       }, [packages, user, db]);
 
-      const performTracking = async (awbToTrack, courierToTrack, itemNameToTrack, phoneToTrack) => {
+      const performTracking = async (awbToTrack, courierToTrack, itemNameToTrack) => {
         setIsLoading(true);
         setError('');
-        setJneError('');
 
         try {
-          const newData = await fetchTrackingFromAPI(awbToTrack, courierToTrack, itemNameToTrack, phoneToTrack);
+          const newData = await fetchTrackingFromAPI(awbToTrack, courierToTrack, itemNameToTrack);
           const docRef = doc(db, 'tracked_packages', newData.awb);
           await setDoc(docRef, newData);
           
           setInputValue('');
           setItemName('');
-          setPhone('');
           setIsModalOpen(false);
-          setIsJneModalOpen(false);
         } catch (err) {
-          if (isJneModalOpen) setJneError(err.message || 'Gagal melacak resi. Silakan coba lagi.');
-          else setError(err.message || 'Gagal melacak resi. Silakan coba lagi.');
+          setError(err.message || 'Gagal melacak resi. Silakan coba lagi.');
         } finally {
           setIsLoading(false);
         }
@@ -458,22 +465,7 @@
           return;
         }
 
-        if (selectedCourier === 'jne') {
-          setIsModalOpen(false);
-          setIsJneModalOpen(true);
-          return;
-        }
-
-        await performTracking(inputValue.trim().toUpperCase(), selectedCourier, itemName.trim(), '');
-      };
-
-      const handleJneSubmit = async (e) => {
-        e.preventDefault();
-        if (!phone.trim()) {
-          setJneError('Digit No. HP wajib diisi untuk JNE.');
-          return;
-        }
-        await performTracking(inputValue.trim().toUpperCase(), 'jne', itemName.trim(), phone.trim());
+        await performTracking(inputValue.trim().toUpperCase(), selectedCourier, itemName.trim());
       };
 
       const requestRemovePackage = (pkg) => setPackageToDelete(pkg);
@@ -506,12 +498,12 @@
         });
 
       return (
-        <div className="min-h-screen font-sans relative pb-20">
+        <div className="min-h-screen font-sans relative pb-20 transition-colors duration-700">
           
-          {/* Latar Belakang Aurora Ringan (Statis) */}
-          <div className="fixed inset-0 z-[-1] hidden dark:block bg-[#05030a] pointer-events-none">
-            <div className="absolute top-[-10%] left-[-10%] w-[60vw] h-[60vw] max-w-[400px] max-h-[400px] bg-violet-900/10 blur-[80px] rounded-full"></div>
-            <div className="absolute bottom-[-10%] right-[-10%] w-[60vw] h-[60vw] max-w-[400px] max-h-[400px] bg-blue-900/10 blur-[80px] rounded-full"></div>
+          {/* Latar Belakang Aurora Flame (Statis) */}
+          <div className="fixed inset-0 z-[-1] hidden dark:block bg-[#080302] pointer-events-none">
+            <div className="absolute top-[-10%] left-[-10%] w-[60vw] h-[60vw] max-w-[400px] max-h-[400px] bg-orange-600/15 blur-[80px] rounded-full"></div>
+            <div className="absolute bottom-[-10%] right-[-10%] w-[60vw] h-[60vw] max-w-[400px] max-h-[400px] bg-red-600/15 blur-[80px] rounded-full"></div>
           </div>
 
           {/* Normal Header: Title */}
@@ -523,7 +515,7 @@
               >
                 YEN BANGUNAN
               </h1>
-              <p className="text-gray-500 dark:text-gray-400 uppercase tracking-[0.2em] text-[10px] sm:text-xs font-bold">
+              <p className="text-gray-500 dark:text-gray-500 uppercase tracking-[0.2em] text-[10px] sm:text-xs font-bold">
                 Tracker Pesanan Online
               </p>
             </div>
@@ -531,7 +523,7 @@
 
           {/* Sticky Toolbar: Pantauan Aktif & Tombol Aksi */}
           <div className={`sticky top-0 z-40 px-3 sm:px-8 pt-2 pb-3 transition-colors duration-300 ${
-            isScrolled ? 'backdrop-blur-md bg-white/90 dark:bg-[#05030a]/80 border-b border-gray-200 dark:border-white/10' : 'bg-transparent'
+            isScrolled ? 'backdrop-blur-md bg-white/90 dark:bg-[#080302]/80 border-b border-gray-200 dark:border-white/10' : 'bg-transparent'
           }`}>
             <div className="max-w-2xl mx-auto relative z-10">
               <div className="flex items-center justify-between px-1 h-11 sm:h-12">
@@ -548,7 +540,7 @@
                       placeholder="Cari resi, nama, kurir..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full pl-10 pr-10 py-0 h-full bg-white dark:bg-[#131024] border border-gray-200 dark:border-[#231d3b] rounded-2xl focus:ring-2 focus:ring-black dark:focus:ring-violet-500 focus:border-black dark:focus:border-transparent outline-none text-gray-900 dark:text-white font-medium text-sm shadow-sm placeholder-gray-400 dark:placeholder-gray-500"
+                      className="w-full pl-10 pr-10 py-0 h-full bg-white dark:bg-[#130d0a] border border-gray-200 dark:border-[#2a1b15] rounded-2xl focus:ring-2 focus:ring-black dark:focus:ring-orange-500 focus:border-black dark:focus:border-transparent outline-none text-gray-900 dark:text-white font-medium text-sm shadow-sm placeholder-gray-400 dark:placeholder-gray-600"
                     />
                     <button
                       onClick={() => { setIsSearchActive(false); setSearchQuery(''); }}
@@ -565,9 +557,9 @@
                       isScrolled ? 'opacity-0 scale-95 pointer-events-none' : 'opacity-100 scale-100'
                     }`}>
                       Pantauan Aktif 
-                      <span className="bg-gray-200 dark:bg-[#131024] text-gray-600 dark:text-white px-2.5 py-0.5 rounded-full text-sm font-semibold flex items-center gap-1.5 dark:border dark:border-[#231d3b]">
+                      <span className="bg-gray-200 dark:bg-[#130d0a] text-gray-600 dark:text-white px-2.5 py-0.5 rounded-full text-sm font-semibold flex items-center gap-1.5 dark:border dark:border-[#2a1b15]">
                         {packages.length}
-                        {isAutoSyncing && <RefreshCw size={12} className="animate-spin text-gray-400 dark:text-gray-400" />}
+                        {isAutoSyncing && <RefreshCw size={12} className="animate-spin text-gray-400 dark:text-gray-500" />}
                       </span>
                     </h2>
 
@@ -579,9 +571,9 @@
                       style={{ fontFamily: "'Bebas Neue', sans-serif", paddingTop: '2px' }}
                     >
                       YEN BANGUNAN
-                      <span className="bg-gray-200 dark:bg-[#131024] text-gray-600 dark:text-white px-2.5 py-0.5 rounded-full text-sm font-sans font-semibold tracking-normal flex items-center gap-1.5 dark:border dark:border-[#231d3b]" style={{ paddingTop: '0' }}>
+                      <span className="bg-gray-200 dark:bg-[#130d0a] text-gray-600 dark:text-white px-2.5 py-0.5 rounded-full text-sm font-sans font-semibold tracking-normal flex items-center gap-1.5 dark:border dark:border-[#2a1b15]" style={{ paddingTop: '0' }}>
                         {packages.length}
-                        {isAutoSyncing && <RefreshCw size={12} className="animate-spin text-gray-400 dark:text-gray-400" />}
+                        {isAutoSyncing && <RefreshCw size={12} className="animate-spin text-gray-400 dark:text-gray-500" />}
                       </span>
                     </h2>
 
@@ -594,7 +586,7 @@
                   {!isSearchActive && packages.length > 0 && (
                     <button 
                       onClick={() => setIsSearchActive(true)}
-                      className="h-11 w-11 sm:h-12 sm:w-12 bg-white dark:bg-[#131024] border border-gray-200 dark:border-[#231d3b] rounded-2xl flex items-center justify-center text-gray-700 dark:text-white shadow-sm hover:bg-gray-50 dark:hover:bg-[#1a162b] transition-colors"
+                      className="h-11 w-11 sm:h-12 sm:w-12 bg-white dark:bg-[#130d0a] border border-gray-200 dark:border-[#2a1b15] rounded-2xl flex items-center justify-center text-gray-700 dark:text-white shadow-sm hover:bg-gray-50 dark:hover:bg-[#1c130d] transition-colors"
                     >
                       <Search size={20} />
                     </button>
@@ -603,7 +595,7 @@
                   {packages.length > 0 && (
                     <div className="relative">
                       <button 
-                        className="h-11 w-11 sm:h-12 sm:w-12 bg-white dark:bg-[#131024] border border-gray-200 dark:border-[#231d3b] rounded-2xl flex items-center justify-center text-gray-700 dark:text-white shadow-sm hover:bg-gray-50 dark:hover:bg-[#1a162b] transition-colors"
+                        className="h-11 w-11 sm:h-12 sm:w-12 bg-white dark:bg-[#130d0a] border border-gray-200 dark:border-[#2a1b15] rounded-2xl flex items-center justify-center text-gray-700 dark:text-white shadow-sm hover:bg-gray-50 dark:hover:bg-[#1c130d] transition-colors"
                       >
                         <Filter size={20} />
                         {sortBy !== 'oldest' && <div className="absolute top-2.5 right-2.5 h-2 w-2 rounded-full bg-red-500 border border-white dark:border-transparent"></div>}
@@ -611,7 +603,7 @@
                       <select
                         value={sortBy}
                         onChange={(e) => setSortBy(e.target.value)}
-                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer dark:bg-[#0a0714] dark:text-white"
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer dark:bg-[#0d0906] dark:text-white"
                       >
                         <option value="oldest">Terlama</option>
                         <option value="newest">Terbaru</option>
@@ -636,16 +628,16 @@
             
             <div className="space-y-4">
               {filteredAndSortedPackages.length === 0 ? (
-                <div className="relative text-center py-20 bg-white dark:bg-[#131024] border-2 border-dashed border-gray-200 dark:border-[#231d3b] rounded-[32px] overflow-hidden">
+                <div className="relative text-center py-20 bg-white dark:bg-[#120a07] border-2 border-dashed border-gray-200 dark:border-[#2a1b15] rounded-[32px] overflow-hidden">
                   <div className="relative z-10">
-                    <div className="inline-flex items-center justify-center h-16 w-16 rounded-full bg-gray-50 dark:bg-[#1f1a36] mb-4">
-                      <Package size={28} className="text-gray-300 dark:text-gray-500" />
+                    <div className="inline-flex items-center justify-center h-16 w-16 rounded-full bg-gray-50 dark:bg-[#1f1008] mb-4">
+                      <Package size={28} className="text-gray-300 dark:text-gray-600" />
                     </div>
                     <p className="text-gray-500 dark:text-gray-400 font-semibold mb-2">
                       {packages.length === 0 ? "Belum ada paket yang dilacak." : "Paket tidak ditemukan."}
                     </p>
                     {packages.length === 0 && (
-                      <button onClick={() => setIsModalOpen(true)} className="text-black dark:text-white font-bold text-sm hover:underline">
+                      <button onClick={() => setIsModalOpen(true)} className="text-black dark:text-orange-500 font-bold text-sm hover:underline">
                         Tekan tombol + untuk menambah
                       </button>
                     )}
@@ -666,31 +658,50 @@
               )}
             </div>
             
-            <div className="mt-12 mb-8 flex flex-col items-center justify-center gap-6 text-[10px] text-gray-400 dark:text-gray-500 font-medium">
-              <p>Dibuat oleh Fajar Jayadi</p>
+            {/* FOOTER AREA */}
+            <div className="mt-16 mb-8 flex flex-col items-center justify-center gap-10">
               
               {/* TOMBOL TEMA (FULL WIDTH SLIDING SWITCH - BULAT PENUH) */}
-              <div className="w-full relative p-1.5 bg-gray-100 dark:bg-[#131024] rounded-full flex items-center border border-gray-200 dark:border-[#231d3b]">
+              <div className="w-full relative p-1.5 bg-gray-100 dark:bg-[#120a07] rounded-full flex items-center border border-gray-200 dark:border-[#26150c]">
                 {/* Latar Belakang Geser (Pill) */}
                 <div 
-                  className="absolute top-1.5 bottom-1.5 w-[calc(50%-6px)] bg-white dark:bg-[#1f1a36] border border-gray-200 dark:border-[#2a2442] rounded-full shadow-sm dark:shadow-md transition-all duration-300 ease-out"
+                  className="absolute top-1.5 bottom-1.5 w-[calc(50%-6px)] bg-white dark:bg-[#1f1008] border border-gray-200 dark:border-[#381c0e] rounded-full shadow-sm dark:shadow-[0_0_10px_rgba(0,0,0,0.5)] transition-all duration-300 ease-out"
                   style={{ left: theme === 'dark' ? 'calc(50% + 3px)' : '6px' }}
                 ></div>
                 
                 <button 
                   onClick={() => setTheme('light')}
-                  className={`flex-1 flex items-center justify-center gap-2 py-3.5 z-10 text-[11px] uppercase tracking-wider font-bold transition-colors duration-300 ${theme === 'light' ? 'text-black' : 'text-gray-500 hover:text-gray-300'}`}
+                  className={`flex-1 flex items-center justify-center gap-2 py-3.5 z-10 text-[11px] uppercase tracking-wider font-bold transition-colors duration-300 ${theme === 'light' ? 'text-black' : 'text-gray-500 hover:text-gray-400'}`}
                 >
                   <Sun size={14} strokeWidth={2.5} /> Mode Terang
                 </button>
                 
                 <button 
                   onClick={() => setTheme('dark')}
-                  className={`flex-1 flex items-center justify-center gap-2 py-3.5 z-10 text-[11px] uppercase tracking-wider font-bold transition-colors duration-300 ${theme === 'dark' ? 'text-white' : 'text-gray-400 hover:text-gray-300'}`}
+                  className={`flex-1 flex items-center justify-center gap-2 py-3.5 z-10 text-[11px] uppercase tracking-wider font-bold transition-colors duration-300 ${theme === 'dark' ? 'text-white' : 'text-gray-500 hover:text-gray-400'}`}
                 >
                   <Moon size={14} strokeWidth={2.5} /> Mode Gelap
                 </button>
               </div>
+
+              {/* SALES PITCH & YEN BUTTON */}
+              <div className="flex flex-col items-center text-center gap-4 px-4">
+                <p className="text-xs font-bold text-gray-500 dark:text-gray-500">
+                  Find this tracking tool valuable for your business?
+                </p>
+                <button 
+                  onClick={() => setIsSalesModalOpen(true)} 
+                  className="group relative inline-flex items-center justify-center gap-2 bg-black dark:bg-gradient-to-r dark:from-orange-500 dark:to-red-500 text-white font-black text-sm px-8 py-3 rounded-full shadow-xl dark:shadow-[0_0_20px_rgba(234,88,12,0.3)] hover:scale-105 active:scale-95 transition-all duration-300"
+                >
+                  <Zap size={16} className="text-yellow-400 dark:text-white group-hover:animate-pulse" />
+                  Acquire This System
+                </button>
+              </div>
+
+              {/* CREDITS */}
+              <p className="text-[10px] text-gray-400 dark:text-gray-600 font-bold tracking-widest uppercase">
+                Dibuat oleh Fajar Jayadi
+              </p>
 
             </div>
           </div>
@@ -698,16 +709,16 @@
           {/* MAIN ADD PACKAGE MODAL */}
           {isModalOpen && (
             <div 
-              className="fixed inset-0 bg-black/60 dark:bg-black/70 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center sm:p-4"
+              className="fixed inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center sm:p-4"
               onClick={() => setIsModalOpen(false)}
             >
               <div 
-                className="relative bg-white dark:bg-[#131024] dark:border dark:border-[#231d3b] rounded-t-[32px] sm:rounded-[32px] shadow-2xl w-full max-w-lg overflow-hidden flex flex-col transform transition-all animate-in slide-in-from-bottom-8 sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-300"
+                className="relative bg-white dark:bg-[#130d0a] dark:border dark:border-[#2a1b15] rounded-t-[32px] sm:rounded-[32px] shadow-2xl w-full max-w-lg overflow-hidden flex flex-col transform transition-all animate-in slide-in-from-bottom-8 sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-300"
                 onClick={(e) => e.stopPropagation()}
               >
-                <div className="relative z-10 px-6 py-5 border-b border-gray-100 dark:border-[#231d3b] flex justify-between items-center bg-white dark:bg-transparent">
+                <div className="relative z-10 px-6 py-5 border-b border-gray-100 dark:border-[#2a1b15] flex justify-between items-center bg-white dark:bg-transparent">
                   <h3 className="font-bold text-xl text-gray-900 dark:text-white tracking-tight">Lacak Resi Baru</h3>
-                  <button onClick={() => setIsModalOpen(false)} className="p-2 -mr-2 text-gray-400 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-[#1f1a36] rounded-full transition-colors bg-gray-50 dark:bg-[#0a0714]">
+                  <button onClick={() => setIsModalOpen(false)} className="p-2 -mr-2 text-gray-400 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-[#1f1008] rounded-full transition-colors bg-gray-50 dark:bg-[#0d0906]">
                     <X size={20} strokeWidth={3} />
                   </button>
                 </div>
@@ -716,7 +727,7 @@
                   <form onSubmit={handleAddPackage} className="flex flex-col gap-5">
                     <div className="space-y-5">
                       <div className="relative">
-                        <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2 ml-1">Nomor Resi</label>
+                        <label className="block text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2 ml-1">Nomor Resi</label>
                         <div className="relative">
                           <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400">
                             <Search size={20} />
@@ -726,7 +737,7 @@
                             value={inputValue}
                             onChange={(e) => setInputValue(e.target.value)}
                             placeholder="Contoh: JP8391283..."
-                            className="w-full pl-12 pr-4 py-4 bg-gray-50 dark:bg-[#0a0714] border border-gray-200 dark:border-[#231d3b] rounded-2xl focus:bg-white dark:focus:bg-[#1a162b] focus:ring-2 focus:ring-black dark:focus:ring-violet-500 focus:border-black dark:focus:border-transparent outline-none text-gray-900 dark:text-white placeholder-gray-400 font-mono font-medium text-sm sm:text-base"
+                            className="w-full pl-12 pr-4 py-4 bg-gray-50 dark:bg-[#0a0503] border border-gray-200 dark:border-[#26150c] rounded-2xl focus:bg-white dark:focus:bg-[#1a1411] focus:ring-2 focus:ring-black dark:focus:ring-orange-500 focus:border-black dark:focus:border-transparent outline-none text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 font-mono font-medium text-sm sm:text-base"
                             required
                             autoFocus
                           />
@@ -734,21 +745,21 @@
                       </div>
 
                       <div>
-                        <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2 ml-1">Pilih Kurir</label>
+                        <label className="block text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2 ml-1">Pilih Kurir</label>
                         <select
                           value={selectedCourier}
                           onChange={(e) => setSelectedCourier(e.target.value)}
-                          className="w-full px-4 py-4 bg-gray-50 dark:bg-[#0a0714] border border-gray-200 dark:border-[#231d3b] rounded-2xl focus:bg-white dark:focus:bg-[#1a162b] focus:ring-2 focus:ring-black dark:focus:ring-violet-500 focus:border-black outline-none text-gray-900 dark:text-white appearance-none cursor-pointer font-medium text-sm sm:text-base"
+                          className="w-full px-4 py-4 bg-gray-50 dark:bg-[#0a0503] border border-gray-200 dark:border-[#26150c] rounded-2xl focus:bg-white dark:focus:bg-[#1a1411] focus:ring-2 focus:ring-black dark:focus:ring-orange-500 focus:border-black outline-none text-gray-900 dark:text-white appearance-none cursor-pointer font-medium text-sm sm:text-base"
                           style={{ backgroundImage: theme === 'dark' ? `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23fff' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")` : `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23000' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`, backgroundPosition: 'right 1rem center', backgroundRepeat: 'no-repeat', backgroundSize: '1.2em 1.2em' }}
                         >
                           {COURIERS.map(c => (
-                            <option key={c.id} value={c.id} className="dark:bg-[#0a0714] dark:text-white">{c.name}</option>
+                            <option key={c.id} value={c.id} className="dark:bg-[#0a0503] dark:text-white">{c.name}</option>
                           ))}
                         </select>
                       </div>
 
                       <div>
-                        <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2 ml-1">Nama Barang (Opsional)</label>
+                        <label className="block text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2 ml-1">Nama Barang (Opsional)</label>
                         <div className="relative">
                           <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400">
                             <Package size={20} />
@@ -758,14 +769,14 @@
                             value={itemName}
                             onChange={(e) => setItemName(e.target.value)}
                             placeholder="Contoh: Sepatu Sneakers"
-                            className="w-full pl-12 pr-4 py-4 bg-gray-50 dark:bg-[#0a0714] border border-gray-200 dark:border-[#231d3b] rounded-2xl focus:bg-white dark:focus:bg-[#1a162b] focus:ring-2 focus:ring-black dark:focus:ring-violet-500 focus:border-black dark:focus:border-transparent outline-none text-gray-900 dark:text-white placeholder-gray-400 font-medium text-sm sm:text-base"
+                            className="w-full pl-12 pr-4 py-4 bg-gray-50 dark:bg-[#0a0503] border border-gray-200 dark:border-[#26150c] rounded-2xl focus:bg-white dark:focus:bg-[#1a1411] focus:ring-2 focus:ring-black dark:focus:ring-orange-500 focus:border-black dark:focus:border-transparent outline-none text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 font-medium text-sm sm:text-base"
                           />
                         </div>
                       </div>
                     </div>
 
                     {error && (
-                      <div className="flex items-start gap-2 text-red-600 dark:text-red-300 bg-red-50 dark:bg-red-900/30 p-4 rounded-2xl text-sm border border-red-100 dark:border-red-800/50 font-medium">
+                      <div className="flex items-start gap-2 text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 p-4 rounded-2xl text-sm border border-red-100 dark:border-red-800/50 font-medium">
                         <AlertCircle size={18} className="shrink-0 mt-0.5" />
                         {error}
                       </div>
@@ -776,13 +787,13 @@
                         type="submit"
                         disabled={isLoading || !user}
                         className={`w-full py-4 rounded-2xl font-bold transition-transform active:scale-[0.98] shadow-lg ${
-                          isLoading || !user ? 'bg-gray-400 dark:bg-gray-700 text-white dark:text-gray-400 shadow-none' : 'bg-black dark:bg-violet-600 text-white hover:bg-gray-800 dark:hover:bg-violet-700 hover:shadow-xl'
+                          isLoading || !user ? 'bg-gray-400 dark:bg-gray-800 text-white dark:text-gray-500 shadow-none' : 'bg-black dark:bg-orange-500 text-white hover:bg-gray-800 dark:hover:bg-orange-600 hover:shadow-xl'
                         } flex items-center justify-center gap-2 text-base`}
                       >
                         {isLoading ? (
                           <>
                             <RefreshCw size={20} className="animate-spin" />
-                            Mencari Data...
+                            Menghubungkan ke Server...
                           </>
                         ) : (
                           <>
@@ -798,98 +809,19 @@
             </div>
           )}
 
-          {/* JNE VERIFICATION MODAL */}
-          {isJneModalOpen && (
-            <div 
-              className="fixed inset-0 bg-black/60 dark:bg-black/70 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center sm:p-4"
-              onClick={() => { setIsJneModalOpen(false); setJneError(''); }}
-            >
-              <div 
-                className="relative bg-white dark:bg-[#131024] dark:border dark:border-[#231d3b] rounded-t-[32px] sm:rounded-[32px] shadow-2xl w-full max-w-md overflow-hidden flex flex-col transform transition-all animate-in slide-in-from-bottom-8 sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-300"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div className="relative z-10 px-6 py-5 border-b border-gray-100 dark:border-[#231d3b] flex justify-between items-center bg-white dark:bg-transparent">
-                  <h3 className="font-bold text-xl text-gray-900 dark:text-white tracking-tight">Verifikasi JNE</h3>
-                  <button onClick={() => { setIsJneModalOpen(false); setJneError(''); }} className="p-2 -mr-2 text-gray-400 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-[#1f1a36] rounded-full transition-colors bg-gray-50 dark:bg-[#0a0714]">
-                    <X size={20} strokeWidth={3} />
-                  </button>
-                </div>
-                
-                <div className="relative z-10 p-6">
-                  <div className="bg-blue-50 dark:bg-violet-900/20 border border-blue-100 dark:border-violet-800/30 rounded-2xl p-4 mb-6">
-                    <p className="text-sm text-blue-900 dark:text-violet-200 font-medium leading-relaxed">
-                      Kurir JNE mewajibkan verifikasi demi keamanan. Masukkan <strong>4 - 5 digit terakhir</strong> dari nomor HP si penerima paket.
-                    </p>
-                  </div>
-                  
-                  <form onSubmit={handleJneSubmit} className="flex flex-col gap-5">
-                    <div>
-                      <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2 ml-1">Digit Terakhir HP Penerima</label>
-                      <input
-                        type="number"
-                        value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                        placeholder="Contoh: 8989"
-                        className="w-full px-5 py-4 bg-gray-50 dark:bg-[#0a0714] border border-gray-200 dark:border-[#231d3b] rounded-2xl focus:bg-white dark:focus:bg-[#1a162b] focus:ring-2 focus:ring-black dark:focus:ring-violet-500 focus:border-black outline-none text-gray-900 dark:text-white placeholder-gray-400 font-mono font-medium text-lg text-center tracking-widest"
-                        required
-                        autoFocus
-                      />
-                    </div>
-
-                    {jneError && (
-                      <div className="flex items-start gap-2 text-red-600 dark:text-red-300 bg-red-50 dark:bg-red-900/30 p-4 rounded-2xl text-sm border border-red-100 dark:border-red-800/50 font-medium">
-                        <AlertCircle size={18} className="shrink-0 mt-0.5" />
-                        {jneError}
-                      </div>
-                    )}
-
-                    <div className="pt-2 flex gap-3">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsJneModalOpen(false);
-                          setIsModalOpen(true);
-                          setJneError('');
-                        }}
-                        className="flex-1 py-4 rounded-2xl font-bold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-[#1f1a36] hover:bg-gray-200 dark:hover:bg-[#2a2442] transition-colors"
-                      >
-                        Kembali
-                      </button>
-                      <button
-                        type="submit"
-                        disabled={isLoading || !user}
-                        className={`flex-[1.5] py-4 rounded-2xl font-bold text-white transition-transform active:scale-[0.98] ${
-                          isLoading || !user ? 'bg-gray-400 dark:bg-gray-700 text-white/50' : 'bg-[#004A98] dark:bg-violet-600 hover:bg-blue-900 dark:hover:bg-violet-700 shadow-lg'
-                        } flex items-center justify-center gap-2`}
-                      >
-                        {isLoading ? (
-                          <RefreshCw size={20} className="animate-spin" />
-                        ) : (
-                          <>
-                            Verifikasi <CheckCircle size={20} />
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  </form>
-                </div>
-              </div>
-            </div>
-          )}
-
           {/* DELETE CONFIRMATION MODAL */}
           {packageToDelete && (
             <div 
-              className="fixed inset-0 bg-black/60 dark:bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+              className="fixed inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
               onClick={() => setPackageToDelete(null)}
             >
               <div 
-                className="relative bg-white dark:bg-[#131024] dark:border dark:border-[#231d3b] rounded-[32px] shadow-2xl w-full max-w-sm overflow-hidden flex flex-col transform transition-all animate-in zoom-in-95 duration-300 p-6 text-center"
+                className="relative bg-white dark:bg-[#130d0a] dark:border dark:border-[#2a1b15] rounded-[32px] shadow-2xl w-full max-w-sm overflow-hidden flex flex-col transform transition-all animate-in zoom-in-95 duration-300 p-6 text-center"
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="relative z-10">
                   <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 dark:bg-red-900/30 mb-4">
-                    <Trash2 size={28} className="text-red-600 dark:text-red-400" />
+                    <Trash2 size={28} className="text-red-600 dark:text-red-500" />
                   </div>
                   <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Hapus Resi?</h3>
                   <p className="text-sm text-gray-500 dark:text-gray-400 mb-6 font-medium">
@@ -898,7 +830,7 @@
                   <div className="flex gap-3">
                     <button
                       onClick={() => setPackageToDelete(null)}
-                      className="flex-1 py-3.5 rounded-2xl font-bold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-[#1f1a36] hover:bg-gray-200 dark:hover:bg-[#2a2442] transition-colors"
+                      className="flex-1 py-3.5 rounded-2xl font-bold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-[#1f1008] hover:bg-gray-200 dark:hover:bg-[#26150c] transition-colors"
                     >
                       Batal
                     </button>
@@ -909,6 +841,44 @@
                       Ya, Hapus
                     </button>
                   </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* SALES PITCH MODAL (ALEX HORMOZI STYLE) */}
+          {isSalesModalOpen && (
+            <div 
+              className="fixed inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+              onClick={() => setIsSalesModalOpen(false)}
+            >
+              <div 
+                className="relative bg-white dark:bg-[#130d0a] dark:border dark:border-[#2a1b15] rounded-[32px] shadow-2xl w-full max-w-sm overflow-hidden flex flex-col transform transition-all animate-in zoom-in-95 duration-300 p-8 text-center"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-yellow-100 dark:bg-orange-900/30 mb-5">
+                  <Zap size={32} className="text-yellow-500 dark:text-orange-500" />
+                </div>
+                <h3 className="text-2xl font-black text-gray-900 dark:text-white mb-3">Stop the Marketplace Chaos.</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-8 leading-relaxed font-medium">
+                  Your staff is wasting hours opening Shopee and Tokopedia, manually clicking every single pre-order just to check statuses. Stop the inefficiency.<br/><br/>
+                  Give your team <strong className="text-black dark:text-orange-400">ONE unified dashboard</strong> to track all incoming items instantly. Acquire this exact tool today. 100% yours. Zero monthly fees. Infinite ROI.
+                </p>
+                <div className="flex flex-col gap-3">
+                  <a
+                    href="https://wa.me/6283192054797?text=Hi!%20I%20would%20like%20to%20acquire%20the%20Online%20Tracker%20Tools."
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full py-4 rounded-2xl font-black text-white bg-black dark:bg-gradient-to-r dark:from-orange-500 dark:to-red-500 hover:bg-gray-800 transition-all shadow-lg dark:shadow-[0_0_20px_rgba(234,88,12,0.3)] active:scale-95 flex justify-center items-center gap-2"
+                  >
+                    Contact Us <ArrowRight size={18} />
+                  </a>
+                  <button
+                    onClick={() => setIsSalesModalOpen(false)}
+                    className="w-full py-3 rounded-2xl font-bold text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors"
+                  >
+                    Maybe Later
+                  </button>
                 </div>
               </div>
             </div>
