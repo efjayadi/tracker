@@ -77,7 +77,7 @@
     import { 
       Package, Truck, CheckCircle, Clock, RefreshCw, Trash2, 
       Search, AlertCircle, MapPin, X, Plus, Navigation, Filter, Moon, Sun, Zap, ArrowRight,
-      Download // <-- Tambahkan Ikon Download
+      Download // Ikon Download untuk PWA Install
     } from 'https://esm.sh/lucide-react@0.263.1';
     
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
@@ -614,7 +614,7 @@
                       style={{ fontFamily: "'Bebas Neue', sans-serif", paddingTop: '2px' }}
                     >
                       YEN BANGUNAN
-                      <span className="bg-gray-200 dark:bg-[#130d0a] text-gray-600 dark:text-white px-2.5 py-0.5 rounded-full text-sm font-sans font-semibold tracking-normal flex items-center gap-1.5 dark:border dark:border-[#2a1b15]" style={{ paddingTop: '0' }}>
+                      <span className="bg-bg-gray-200 dark:bg-[#130d0a] text-gray-600 dark:text-white px-2.5 py-0.5 rounded-full text-sm font-sans font-semibold tracking-normal flex items-center gap-1.5 dark:border dark:border-[#2a1b15]" style={{ paddingTop: '0' }}>
                         {packages.length}
                         {isAutoSyncing && <RefreshCw size={12} className="animate-spin text-gray-400 dark:text-gray-500" />}
                       </span>
