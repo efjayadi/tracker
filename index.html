@@ -53,6 +53,7 @@
             animation: {
               'wave': 'wave 20s ease-in-out infinite alternate',
               'wave-slow': 'wave 25s ease-in-out infinite alternate-reverse',
+              'slide-down': 'slide-down 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards' // Animasi Notifikasi PWA
             },
             keyframes: {
               wave: {
@@ -60,6 +61,10 @@
                 '33%': { transform: 'translate(30px, -50px) scale(1.1) rotate(5deg)' },
                 '66%': { transform: 'translate(-20px, 20px) scale(0.9) rotate(-5deg)' },
                 '100%': { transform: 'translate(0px, 0px) scale(1) rotate(0deg)' }
+              },
+              'slide-down': {
+                '0%': { transform: 'translateY(-150%)', opacity: '0' },
+                '100%': { transform: 'translateY(0)', opacity: '1' }
               }
             }
           }
@@ -86,7 +91,7 @@
     import { 
       Package, Truck, CheckCircle, Clock, RefreshCw, Trash2, 
       Search, AlertCircle, MapPin, X, Plus, Navigation, Filter, Moon, Sun, Zap, ArrowRight,
-      Download // <-- Ikon Download untuk Instalasi PWA
+      Download 
     } from 'https://esm.sh/lucide-react@0.263.1';
     
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
@@ -114,6 +119,105 @@
     } catch (e) {
       console.error("Gagal inisialisasi Firebase", e);
     }
+
+    // ==========================================
+    // PWA INSTALL PROMPT COMPONENT (iOS Style)
+    // ==========================================
+    const PwaInstallPrompt = () => {
+      const [isVisible, setIsVisible] = useState(false);
+      const [deferredPrompt, setDeferredPrompt] = useState(null);
+      const [isIOS, setIsIOS] = useState(false);
+
+      useEffect(() => {
+        // 1. Cek mode standalone (sudah install)
+        const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+        if (isStandalone) return;
+
+        // 2. Deteksi iOS
+        const userAgent = window.navigator.userAgent.toLowerCase();
+        const iosDevice = /iphone|ipad|ipod/.test(userAgent);
+        setIsIOS(iosDevice);
+
+        // 3. Tangkap event Android
+        const handleBeforeInstallPrompt = (e) => {
+          e.preventDefault();
+          setDeferredPrompt(e);
+          setIsVisible(true);
+        };
+
+        window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+        // Jika global event sudah menangkapnya sebelum mount
+        if (window.deferredPrompt) {
+          setDeferredPrompt(window.deferredPrompt);
+          setIsVisible(true);
+        }
+
+        // 4. Trigger manual delay untuk iOS
+        let iosTimer;
+        if (iosDevice) {
+          iosTimer = setTimeout(() => {
+            setIsVisible(true);
+          }, 2500); // Muncul setelah 2.5 detik
+        }
+
+        return () => {
+          window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+          if (iosTimer) clearTimeout(iosTimer);
+        };
+      }, []);
+
+      const handleInstall = async () => {
+        if (isIOS) {
+          alert("Untuk menginstal di iOS:\n\n1. Tekan ikon 'Share' di browser Anda\n2. Pilih menu 'Add to Home Screen' (Tambahkan ke Layar Utama)");
+        } else if (deferredPrompt) {
+          deferredPrompt.prompt();
+          const { outcome } = await deferredPrompt.userChoice;
+          if (outcome === 'accepted') {
+            setIsVisible(false); // Sembunyikan jika diterima
+          }
+          setDeferredPrompt(null);
+          window.deferredPrompt = null;
+        }
+      };
+
+      if (!isVisible) return null;
+
+      return (
+        <div className="fixed top-4 left-0 right-0 z-[9999] flex justify-center px-4 pointer-events-none">
+          <div className="pointer-events-auto flex items-center gap-3 w-full max-w-[380px] p-3 bg-white/80 dark:bg-black/70 backdrop-blur-xl border border-white/50 dark:border-[#2a1b15] shadow-2xl rounded-2xl animate-slide-down">
+            {/* Ikon Aplikasi */}
+            <div className="w-12 h-12 bg-black dark:bg-orange-500 rounded-[12px] flex items-center justify-center shrink-0 shadow-md">
+              <Package size={24} className="text-white" />
+            </div>
+            
+            {/* Teks */}
+            <div className="flex-1 min-w-0">
+              <h4 className="font-bold text-gray-900 dark:text-white text-[14px] leading-tight mb-0.5">Download this App</h4>
+              <p className="text-[11px] text-gray-500 dark:text-gray-400 truncate">Akses instan & notifikasi cepat</p>
+            </div>
+            
+            {/* Action Buttons */}
+            <div className="flex items-center gap-3 shrink-0">
+              <button 
+                onClick={handleInstall}
+                className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-1.5 rounded-full shadow-sm active:scale-95 transition-all"
+              >
+                GET
+              </button>
+              
+              <button 
+                onClick={() => setIsVisible(false)}
+                className="p-1 -mr-1 rounded-full text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+                title="Tutup"
+              >
+                <X size={16} strokeWidth={2.5} />
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    };
 
     // ==========================================
     // 2. BINDERBYTE API (TRACKING)
@@ -377,9 +481,6 @@
       const [isAutoSyncing, setIsAutoSyncing] = useState(false);
       const processedAutoRefresh = useRef(new Set());
 
-      // PWA State (Mendengarkan siap untuk di-install)
-      const [installPrompt, setInstallPrompt] = useState(null);
-
       // Theme State (Dark Mode)
       const [theme, setTheme] = useState(() => {
         if (typeof window !== 'undefined') {
@@ -406,54 +507,6 @@
         window.addEventListener('scroll', handleScroll, { passive: true });
         return () => window.removeEventListener('scroll', handleScroll);
       }, []);
-
-      // PWA Install Prompt Listener (Diperbarui)
-      useEffect(() => {
-        // 1. Cek apakah event sudah ditangkap oleh Global Catcher di atas
-        if (window.deferredPrompt) {
-          setInstallPrompt(window.deferredPrompt);
-        }
-
-        // 2. Listener jika event muncul setelah React mount
-        const handleBeforeInstallPrompt = (e) => {
-          e.preventDefault();
-          window.deferredPrompt = e;
-          setInstallPrompt(e);
-        };
-
-        // 3. Listener untuk custom event dari Global Catcher
-        const handlePwaReady = () => {
-          if (window.deferredPrompt) {
-            setInstallPrompt(window.deferredPrompt);
-          }
-        };
-        
-        window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-        window.addEventListener('pwa-ready', handlePwaReady);
-        
-        return () => {
-          window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-          window.removeEventListener('pwa-ready', handlePwaReady);
-        };
-      }, []);
-
-      const handleInstallApp = async () => {
-        if (!installPrompt) return;
-        
-        // Memunculkan native dialog dari browser
-        installPrompt.prompt();
-        const { outcome } = await installPrompt.userChoice;
-        
-        if (outcome === 'accepted') {
-          console.log('User accepted the A2HS prompt');
-        } else {
-          console.log('User dismissed the A2HS prompt');
-        }
-        
-        // Reset state setelah pop-up dijawab
-        setInstallPrompt(null);
-        window.deferredPrompt = null;
-      };
 
       // Firebase Auth
       useEffect(() => {
@@ -581,6 +634,9 @@
       return (
         <div className="min-h-screen font-sans relative pb-20 transition-colors duration-700">
           
+          {/* PEMANGGILAN KOMPONEN PWA PROMPT */}
+          <PwaInstallPrompt />
+
           {/* Latar Belakang Aurora Flame (Statis) */}
           <div className="fixed inset-0 z-[-1] hidden dark:block bg-[#080302] pointer-events-none">
             <div className="absolute top-[-10%] left-[-10%] w-[60vw] h-[60vw] max-w-[400px] max-h-[400px] bg-orange-600/15 blur-[80px] rounded-full"></div>
@@ -664,17 +720,6 @@
                 {/* Bagian Kanan: Ikon */}
                 <div className="flex items-center gap-2 shrink-0">
                   
-                  {/* PWA Install Button (Hanya tampil jika device mengizinkan instalasi) */}
-                  {installPrompt && !isSearchActive && (
-                    <button 
-                      onClick={handleInstallApp}
-                      className="bg-orange-500 hover:bg-orange-600 text-white h-11 w-11 sm:h-12 sm:w-12 rounded-2xl flex items-center justify-center transition-transform active:scale-95 shadow-md shrink-0 border border-orange-400 dark:border-transparent animate-pulse"
-                      title="Install Aplikasi PWA"
-                    >
-                      <Download size={20} strokeWidth={2.5} />
-                    </button>
-                  )}
-
                   {!isSearchActive && packages.length > 0 && (
                     <button 
                       onClick={() => setIsSearchActive(true)}
