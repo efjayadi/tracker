@@ -186,12 +186,13 @@
       return (
         <div className="fixed top-4 left-0 right-0 z-[9999] flex justify-center px-4 pointer-events-none">
           <div className="pointer-events-auto flex items-center gap-3 w-full max-w-[380px] p-3 bg-white/80 dark:bg-black/70 backdrop-blur-xl border border-white/50 dark:border-[#2a1b15] shadow-2xl rounded-2xl animate-slide-down">
-            {/* Ikon Aplikasi */}<b style="color:white;">OL</b>
+            {/* Ikon Aplikasi */}
+            <img src="./icon-512.png" alt="App Icon" className="w-12 h-12 rounded-[12px] object-cover shadow-md shrink-0 border border-gray-100 dark:border-[#2a1b15]" />
             
             {/* Teks */}
             <div className="flex-1 min-w-0">
-              <h4 className="font-bold text-gray-900 dark:text-white text-[14px] leading-tight mb-0.5">Download this App</h4>
-              <p className="text-[11px] text-gray-500 dark:text-gray-400 truncate">Mempermudah & Mempercepat Cek</p>
+              <h4 className="font-bold text-gray-900 dark:text-white text-[14px] leading-tight mb-0.5">Download This App</h4>
+              <p className="text-[11px] text-gray-500 dark:text-gray-400 truncate">Biar lebih mudah dan lebih cepat</p>
             </div>
             
             {/* Action Buttons */}
@@ -200,7 +201,7 @@
                 onClick={handleInstall}
                 className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-1.5 rounded-full shadow-sm active:scale-95 transition-all"
               >
-                GET
+                INSTALL
               </button>
               
               <button 
