@@ -53,7 +53,7 @@
             animation: {
               'wave': 'wave 20s ease-in-out infinite alternate',
               'wave-slow': 'wave 25s ease-in-out infinite alternate-reverse',
-              'slide-down': 'slide-down 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards' // Animasi Notifikasi PWA
+              'slide-down': 'slide-down 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards'
             },
             keyframes: {
               wave: {
@@ -91,7 +91,7 @@
     import { 
       Package, Truck, CheckCircle, Clock, RefreshCw, Trash2, 
       Search, AlertCircle, MapPin, X, Plus, Navigation, Filter, Moon, Sun, Zap, ArrowRight,
-      Download 
+      Download, ChevronDown
     } from 'https://esm.sh/lucide-react@0.263.1';
     
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
@@ -129,16 +129,13 @@
       const [isIOS, setIsIOS] = useState(false);
 
       useEffect(() => {
-        // 1. Cek mode standalone (sudah install)
         const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
         if (isStandalone) return;
 
-        // 2. Deteksi iOS
         const userAgent = window.navigator.userAgent.toLowerCase();
         const iosDevice = /iphone|ipad|ipod/.test(userAgent);
         setIsIOS(iosDevice);
 
-        // 3. Tangkap event Android
         const handleBeforeInstallPrompt = (e) => {
           e.preventDefault();
           setDeferredPrompt(e);
@@ -147,18 +144,16 @@
 
         window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 
-        // Jika global event sudah menangkapnya sebelum mount
         if (window.deferredPrompt) {
           setDeferredPrompt(window.deferredPrompt);
           setIsVisible(true);
         }
 
-        // 4. Trigger manual delay untuk iOS
         let iosTimer;
         if (iosDevice) {
           iosTimer = setTimeout(() => {
             setIsVisible(true);
-          }, 2500); // Muncul setelah 2.5 detik
+          }, 2500); 
         }
 
         return () => {
@@ -174,7 +169,7 @@
           deferredPrompt.prompt();
           const { outcome } = await deferredPrompt.userChoice;
           if (outcome === 'accepted') {
-            setIsVisible(false); // Sembunyikan jika diterima
+            setIsVisible(false);
           }
           setDeferredPrompt(null);
           window.deferredPrompt = null;
@@ -186,16 +181,13 @@
       return (
         <div className="fixed top-4 left-0 right-0 z-[9999] flex justify-center px-4 pointer-events-none">
           <div className="pointer-events-auto flex items-center gap-3 w-full max-w-[380px] p-3 bg-white/80 dark:bg-black/70 backdrop-blur-xl border border-white/50 dark:border-[#2a1b15] shadow-2xl rounded-2xl animate-slide-down">
-            {/* Ikon Aplikasi */}
-            <img src="./icon-512.png" alt="App Icon" className="w-12 h-12 rounded-[12px] object-cover shadow-md shrink-0 border border-gray-100 dark:border-[#2a1b15]" />
+            <img src="./icon-512.png" alt="App Icon" className="w-12 h-12 rounded-[12px] object-cover shadow-md shrink-0 border border-gray-100 dark:border-[#2a1b15]" onError={(e) => {e.target.style.display='none'}} />
             
-            {/* Teks */}
             <div className="flex-1 min-w-0">
               <h4 className="font-bold text-gray-900 dark:text-white text-[14px] leading-tight mb-0.5">Download This App</h4>
               <p className="text-[11px] text-gray-500 dark:text-gray-400 truncate">Biar lebih mudah dan lebih cepat</p>
             </div>
             
-            {/* Action Buttons */}
             <div className="flex items-center gap-3 shrink-0">
               <button 
                 onClick={handleInstall}
@@ -477,7 +469,8 @@
       const [isSalesModalOpen, setIsSalesModalOpen] = useState(false);
       
       const [isAutoSyncing, setIsAutoSyncing] = useState(false);
-      const processedAutoRefresh = useRef(new Set());
+      const [currentView, setCurrentView] = useState('aktif');
+      const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
       // Theme State (Dark Mode)
       const [theme, setTheme] = useState(() => {
@@ -535,37 +528,77 @@
         return () => unsubscribe();
       }, [user]);
 
-      // Smart Auto Refresh (Background Data Check)
+      // ==========================================
+      // MODIFIKASI: AUTO-SYNC TERJADWAL (SANGAT HEMAT KUOTA)
+      // Hanya berjalan di Jam 09:00 dan 15:00 (Senin - Sabtu)
+      // ==========================================
       useEffect(() => {
         if (!user || !db || packages.length === 0) return;
 
-        const performAutoRefresh = async () => {
-          const now = new Date().getTime();
-          const AUTO_REFRESH_INTERVAL = 2 * 60 * 60 * 1000; // 2 Jam
+        const checkAndRunAutoSync = async () => {
+          const now = new Date();
+          const day = now.getDay();
+          const hour = now.getHours();
 
-          const packagesToRefresh = packages.filter(pkg => {
-            if (pkg.status === 'DELIVERED') return false; 
-            if (processedAutoRefresh.current.has(pkg.awb)) return false; 
-            const lastUpdatedTime = new Date(pkg.lastUpdated || pkg.addedAt).getTime();
-            return (now - lastUpdatedTime) > AUTO_REFRESH_INTERVAL;
-          });
+          // 0 = Minggu (Lewati hari Minggu sepenuhnya)
+          if (day === 0) return;
 
-          if (packagesToRefresh.length > 0) {
+          // Buat string tanggal lokal (YYYY-MM-DD)
+          const y = now.getFullYear();
+          const m = String(now.getMonth() + 1).padStart(2, '0');
+          const d = String(now.getDate()).padStart(2, '0');
+          const dateString = `${y}-${m}-${d}`;
+          
+          let syncState = JSON.parse(localStorage.getItem('yen_scheduled_sync') || '{}');
+          
+          // Reset status jika hari sudah berganti
+          if (syncState.date !== dateString) {
+            syncState = { date: dateString, morningDone: false, afternoonDone: false };
+          }
+
+          let shouldSync = false;
+
+          // Sesi Pagi: Jam 09:00 - 14:59
+          if (hour >= 9 && hour < 15 && !syncState.morningDone) {
+            shouldSync = true;
+            syncState.morningDone = true;
+          } 
+          // Sesi Sore: Jam 15:00 ke atas
+          else if (hour >= 15 && !syncState.afternoonDone) {
+            shouldSync = true;
+            syncState.afternoonDone = true;
+          }
+
+          if (shouldSync) {
+            // Simpan status SEGERA ke browser agar tab lain tidak ikut melakukan sync
+            localStorage.setItem('yen_scheduled_sync', JSON.stringify(syncState));
             setIsAutoSyncing(true);
-            for (const pkg of packagesToRefresh) {
+            
+            for (const pkg of packages) {
+              // Jangan buang kuota untuk paket yang sudah sampai
+              if (pkg.status === 'DELIVERED') continue;
+              
               try {
-                processedAutoRefresh.current.add(pkg.awb); 
                 const updatedData = await fetchTrackingFromAPI(pkg.awb, pkg.courier, pkg.itemName);
                 await setDoc(doc(db, 'tracked_packages', pkg.awb), updatedData, { merge: true });
-              } catch (err) {}
-              await new Promise(resolve => setTimeout(resolve, 1000));
+              } catch (err) {
+                console.error(`Auto-sync gagal untuk ${pkg.awb}`, err);
+              }
+              
+              // Jeda 1.5 detik antar request untuk menghindari pemblokiran API Binderbyte
+              await new Promise(resolve => setTimeout(resolve, 1500));
             }
+            
             setIsAutoSyncing(false);
           }
         };
 
-        performAutoRefresh();
-        const intervalId = setInterval(performAutoRefresh, 5 * 60 * 1000);
+        // Jalankan pengecekan saat aplikasi pertama kali dimuat
+        checkAndRunAutoSync();
+
+        // Cek secara berkala setiap 5 menit 
+        // (Aksi hanya akan tereksekusi jika masuk ke rentang waktu 9am/3pm dan belum berstatus "Done")
+        const intervalId = setInterval(checkAndRunAutoSync, 5 * 60 * 1000);
         return () => clearInterval(intervalId);
       }, [packages, user, db]);
 
@@ -610,7 +643,19 @@
         } catch (err) { console.error("Failed to remove package", err); }
       };
 
-      const filteredAndSortedPackages = packages
+      const checkIsArchived = (pkg) => {
+        if (pkg.status !== 'DELIVERED') return false;
+        const dateStr = (pkg.timeline && pkg.timeline.length > 0) ? pkg.timeline[0].timestamp : pkg.lastUpdated;
+        const d = new Date((dateStr || '').replace(' ', 'T'));
+        if (isNaN(d.getTime())) return false;
+        return (new Date().getTime() - d.getTime()) >= (24 * 60 * 60 * 1000); // Lebih dari 1 hari
+      };
+
+      const activePackages = packages.filter(p => !checkIsArchived(p));
+      const archivedPackages = packages.filter(p => checkIsArchived(p));
+      const sourcePackages = currentView === 'aktif' ? activePackages : archivedPackages;
+
+      const filteredAndSortedPackages = sourcePackages
         .filter(pkg => {
           const query = searchQuery.toLowerCase();
           return (
@@ -632,7 +677,6 @@
       return (
         <div className="min-h-screen font-sans relative pb-20 transition-colors duration-700">
           
-          {/* PEMANGGILAN KOMPONEN PWA PROMPT */}
           <PwaInstallPrompt />
 
           {/* Latar Belakang Aurora Flame (Statis) */}
@@ -685,32 +729,69 @@
                     </button>
                   </div>
                 ) : (
-                  <div className="flex-1 relative flex items-center h-full animate-in fade-in slide-in-from-right-4 duration-300">
+                  <div className="flex-1 relative flex items-center h-full animate-in fade-in slide-in-from-right-4 duration-300 z-50">
                     
-                    {/* Teks "Pantauan Aktif" */}
-                    <h2 className={`absolute left-0 text-xl sm:text-2xl font-bold text-gray-900 dark:text-white tracking-tight flex items-center gap-2 transition-all duration-300 origin-left ${
-                      isScrolled ? 'opacity-0 scale-95 pointer-events-none' : 'opacity-100 scale-100'
-                    }`}>
-                      Pantauan Aktif 
-                      <span className="bg-gray-200 dark:bg-[#130d0a] text-gray-600 dark:text-white px-2.5 py-0.5 rounded-full text-sm font-semibold flex items-center gap-1.5 dark:border dark:border-[#2a1b15]">
-                        {packages.length}
-                        {isAutoSyncing && <RefreshCw size={12} className="animate-spin text-gray-400 dark:text-gray-500" />}
-                      </span>
-                    </h2>
+                    {/* Overlay Transparan untuk Menutup Dropdown Saat Diklik di Luar */}
+                    {isDropdownOpen && <div className="fixed inset-0 z-40" onClick={() => setIsDropdownOpen(false)}></div>}
 
-                    {/* Teks "YEN BANGUNAN" (Muncul saat di-scroll) */}
-                    <h2 
-                      className={`absolute left-0 text-2xl sm:text-3xl text-gray-900 dark:text-white tracking-wide transition-all duration-300 origin-left flex items-center gap-2 ${
-                        isScrolled ? 'opacity-100 scale-100' : 'opacity-0 scale-105 pointer-events-none'
-                      }`} 
-                      style={{ fontFamily: "'Bebas Neue', sans-serif", paddingTop: '2px' }}
+                    <button 
+                      onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                      className={`absolute left-0 flex items-center gap-1.5 focus:outline-none group transition-all duration-300 origin-left ${
+                        isScrolled ? 'opacity-0 scale-95 pointer-events-none' : 'opacity-100 scale-100'
+                      }`}
                     >
-                      YEN BANGUNAN
-                      <span className="bg-gray-200 dark:bg-[#130d0a] text-gray-600 dark:text-white px-2.5 py-0.5 rounded-full text-sm font-sans font-semibold tracking-normal flex items-center gap-1.5 dark:border dark:border-[#2a1b15]" style={{ paddingTop: '0' }}>
-                        {packages.length}
-                        {isAutoSyncing && <RefreshCw size={12} className="animate-spin text-gray-400 dark:text-gray-500" />}
-                      </span>
-                    </h2>
+                      <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white tracking-tight flex items-center gap-1 sm:gap-2">
+                        {currentView === 'aktif' ? 'Pantauan Aktif' : 'Riwayat Tiba'}
+                        <span className="bg-gray-200 dark:bg-[#130d0a] text-gray-600 dark:text-white px-2 sm:px-2.5 py-0.5 rounded-full text-xs sm:text-sm font-semibold flex items-center gap-1.5 dark:border dark:border-[#2a1b15]">
+                          {sourcePackages.length}
+                          {isAutoSyncing && currentView === 'aktif' && <RefreshCw size={12} className="animate-spin text-gray-400 dark:text-gray-500" />}
+                        </span>
+                        <ChevronDown size={18} className={`text-gray-400 dark:text-gray-500 transition-transform duration-300 ${isDropdownOpen ? 'rotate-180' : ''}`} />
+                      </h2>
+                    </button>
+
+                    <button 
+                      onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                      className={`absolute left-0 transition-all duration-300 origin-left flex items-center gap-1 focus:outline-none ${
+                        isScrolled ? 'opacity-100 scale-100' : 'opacity-0 scale-105 pointer-events-none'
+                      }`}
+                    >
+                      <h2 
+                        className="text-2xl sm:text-3xl text-gray-900 dark:text-white tracking-wide flex items-center gap-1 sm:gap-2" 
+                        style={{ fontFamily: "'Bebas Neue', sans-serif", paddingTop: '2px' }}
+                      >
+                        {currentView === 'aktif' ? 'YEN BANGUNAN' : 'RIWAYAT TIBA'}
+                        <span className="bg-gray-200 dark:bg-[#130d0a] text-gray-600 dark:text-white px-2 sm:px-2.5 py-0.5 rounded-full text-sm font-sans font-semibold tracking-normal flex items-center gap-1.5 dark:border dark:border-[#2a1b15]" style={{ paddingTop: '0' }}>
+                          {sourcePackages.length}
+                          {isAutoSyncing && currentView === 'aktif' && <RefreshCw size={12} className="animate-spin text-gray-400 dark:text-gray-500" />}
+                        </span>
+                        <ChevronDown size={18} className={`text-gray-400 dark:text-gray-500 transition-transform duration-300 ${isDropdownOpen ? 'rotate-180' : ''}`} />
+                      </h2>
+                    </button>
+
+                    {/* MENU DROPDOWN (ANIMASI SLIDE-DOWN HALUS) */}
+                    <div 
+                      className={`absolute top-10 sm:top-12 left-0 mt-1 sm:mt-2 w-56 sm:w-60 bg-white dark:bg-[#130d0a] border border-gray-100 dark:border-[#2a1b15] rounded-[20px] shadow-2xl py-1.5 z-50 overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] origin-top-left ${
+                        isDropdownOpen 
+                          ? 'opacity-100 translate-y-0 scale-100 pointer-events-auto' 
+                          : 'opacity-0 -translate-y-3 scale-95 pointer-events-none'
+                      }`}
+                    >
+                      <button 
+                        onClick={() => { setCurrentView('aktif'); setIsDropdownOpen(false); }}
+                        className={`w-full text-left px-4 py-3.5 text-sm font-bold flex items-center justify-between transition-colors ${currentView === 'aktif' ? 'text-black dark:text-orange-500 bg-gray-50 dark:bg-[#1c130d]' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-[#1c130d]'}`}
+                      >
+                        Pantauan Aktif
+                        <span className="bg-gray-100 dark:bg-[#2a1b15] py-0.5 px-2.5 rounded-full text-xs text-gray-500 dark:text-gray-400">{activePackages.length}</span>
+                      </button>
+                      <button 
+                        onClick={() => { setCurrentView('riwayat'); setIsDropdownOpen(false); }}
+                        className={`w-full text-left px-4 py-3.5 text-sm font-bold flex items-center justify-between transition-colors ${currentView === 'riwayat' ? 'text-black dark:text-orange-500 bg-gray-50 dark:bg-[#1c130d]' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-[#1c130d]'}`}
+                      >
+                        Riwayat Tiba (History)
+                        <span className="bg-gray-100 dark:bg-[#2a1b15] py-0.5 px-2.5 rounded-full text-xs text-gray-500 dark:text-gray-400">{archivedPackages.length}</span>
+                      </button>
+                    </div>
 
                   </div>
                 )}
@@ -722,6 +803,7 @@
                     <button 
                       onClick={() => setIsSearchActive(true)}
                       className="h-11 w-11 sm:h-12 sm:w-12 bg-white dark:bg-[#130d0a] border border-gray-200 dark:border-[#2a1b15] rounded-2xl flex items-center justify-center text-gray-700 dark:text-white shadow-sm hover:bg-gray-50 dark:hover:bg-[#1c130d] transition-colors"
+                      title="Cari Resi"
                     >
                       <Search size={20} />
                     </button>
@@ -731,6 +813,7 @@
                     <div className="relative">
                       <button 
                         className="h-11 w-11 sm:h-12 sm:w-12 bg-white dark:bg-[#130d0a] border border-gray-200 dark:border-[#2a1b15] rounded-2xl flex items-center justify-center text-gray-700 dark:text-white shadow-sm hover:bg-gray-50 dark:hover:bg-[#1c130d] transition-colors"
+                        title="Filter Data"
                       >
                         <Filter size={20} />
                         {sortBy !== 'oldest' && <div className="absolute top-2.5 right-2.5 h-2 w-2 rounded-full bg-red-500 border border-white dark:border-transparent"></div>}
@@ -750,6 +833,7 @@
                   <button 
                     onClick={() => setIsModalOpen(true)}
                     className="bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-gray-200 text-white dark:text-black h-11 w-11 sm:h-12 sm:w-12 rounded-2xl flex items-center justify-center transition-transform active:scale-95 shadow-md shrink-0"
+                    title="Tambah Resi"
                   >
                     <Plus size={24} strokeWidth={3} />
                   </button>
@@ -769,9 +853,15 @@
                       <Package size={28} className="text-gray-300 dark:text-gray-600" />
                     </div>
                     <p className="text-gray-500 dark:text-gray-400 font-semibold mb-2">
-                      {packages.length === 0 ? "Belum ada paket yang dilacak." : "Paket tidak ditemukan."}
+                      {sourcePackages.length === 0 && packages.length === 0 
+                        ? "Belum ada paket yang dilacak." 
+                        : sourcePackages.length === 0 && currentView === 'riwayat'
+                        ? "Belum ada riwayat paket yang tiba."
+                        : sourcePackages.length === 0 && currentView === 'aktif'
+                        ? "Semua paket Anda sudah tiba!"
+                        : "Paket tidak ditemukan."}
                     </p>
-                    {packages.length === 0 && (
+                    {sourcePackages.length === 0 && currentView === 'aktif' && packages.length === 0 && (
                       <button onClick={() => setIsModalOpen(true)} className="text-black dark:text-orange-500 font-bold text-sm hover:underline">
                         Tekan tombol + untuk menambah
                       </button>
@@ -796,9 +886,7 @@
             {/* FOOTER AREA */}
             <div className="mt-16 mb-8 flex flex-col items-center justify-center gap-10">
               
-              {/* TOMBOL TEMA (FULL WIDTH SLIDING SWITCH - BULAT PENUH) */}
               <div className="w-full relative p-1.5 bg-gray-100 dark:bg-[#120a07] rounded-full flex items-center border border-gray-200 dark:border-[#26150c]">
-                {/* Latar Belakang Geser (Pill) */}
                 <div 
                   className="absolute top-1.5 bottom-1.5 w-[calc(50%-6px)] bg-white dark:bg-[#1f1008] border border-gray-200 dark:border-[#381c0e] rounded-full shadow-sm dark:shadow-[0_0_10px_rgba(0,0,0,0.5)] transition-all duration-300 ease-out"
                   style={{ left: theme === 'dark' ? 'calc(50% + 3px)' : '6px' }}
@@ -819,7 +907,6 @@
                 </button>
               </div>
 
-              {/* SALES PITCH & YEN BUTTON */}
               <div className="flex flex-col items-center text-center gap-4 px-4">
                 <p className="text-xs font-bold text-gray-500 dark:text-gray-500">
                   Find this tracking tool valuable for your business?
@@ -833,7 +920,6 @@
                 </button>
               </div>
 
-              {/* CREDITS */}
               <p className="text-[10px] text-gray-400 dark:text-gray-600 font-bold tracking-widest uppercase">
                 Dibuat oleh Fajar Jayadi
               </p>
@@ -981,7 +1067,7 @@
             </div>
           )}
 
-          {/* SALES PITCH MODAL (ALEX HORMOZI STYLE) */}
+          {/* SALES PITCH MODAL */}
           {isSalesModalOpen && (
             <div 
               className="fixed inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
