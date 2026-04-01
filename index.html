@@ -58,6 +58,9 @@
               'wind-1': 'wind-flow 0.4s linear infinite',
               'wind-2': 'wind-flow 0.4s linear infinite 0.1s',
               'wind-3': 'wind-flow 0.4s linear infinite 0.2s',
+              'package-jitter': 'package-jitter 0.5s ease-in-out infinite',
+              'hourglass-flip': 'hourglass-flip 2s ease-in-out infinite',
+              'question-pulse': 'question-pulse 1.5s ease-in-out infinite',
             },
             keyframes: {
               wave: {
@@ -80,6 +83,19 @@
                 '0%': { transform: 'translateX(0)', opacity: '0' },
                 '30%': { opacity: '0.8' },
                 '100%': { transform: 'translateX(-12px)', opacity: '0' },
+              },
+              'package-jitter': {
+                '0%, 100%': { transform: 'rotate(0deg) scale(1)' },
+                '25%': { transform: 'rotate(-3deg) scale(1.05)' },
+                '75%': { transform: 'rotate(3deg) scale(1.05)' },
+              },
+              'hourglass-flip': {
+                '0%': { transform: 'rotate(0deg)' },
+                '40%, 100%': { transform: 'rotate(180deg)' },
+              },
+              'question-pulse': {
+                '0%, 100%': { transform: 'scale(1) rotate(0deg)', opacity: '0.7' },
+                '50%': { transform: 'scale(1.2) rotate(10deg)', opacity: '1' },
               }
             }
           }
@@ -123,7 +139,7 @@
     import { 
       Package, Truck, CheckCircle, Clock, RefreshCw, Trash2, 
       Search, AlertCircle, MapPin, X, Plus, Navigation, Filter, Moon, Sun, Zap, ArrowRight,
-      Download, ChevronDown, Edit2, Calendar, User, RotateCcw, FileText
+      Download, ChevronDown, Edit2, Calendar, User, RotateCcw, FileText, Hourglass, HelpCircle
     } from 'https://esm.sh/lucide-react@0.263.1';
     
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
@@ -216,7 +232,7 @@
             <img src="./icon-512.png" alt="App Icon" className="w-12 h-12 rounded-[12px] object-cover shadow-md shrink-0 border border-gray-100 dark:border-[#2a1b15]" onError={(e) => {e.target.style.display='none'}} />
             
             <div className="flex-1 min-w-0">
-              <h4 className="font-bold text-gray-900 dark:text-white text-[14px] leading-tight mb-0.5">Download This App</h4>
+              <h4 className="font-bold text-gray-900 dark:text-white text-[14px] mb-0.5">Download This App</h4>
               <p className="text-[11px] text-gray-500 dark:text-gray-400 truncate">Biar lebih mudah dan lebih cepat</p>
             </div>
             
@@ -263,7 +279,7 @@
         const targetUrl = `https://api.binderbyte.com/v1/track?api_key=${BINDERBYTE_API_KEY}&courier=${courier}&awb=${awb}&_t=${Date.now()}`;
         
         const urlsToTry = [
-          targetUrl, // Akses langsung (Binderbyte mendukung CORS untuk domain tertentu)
+          targetUrl,
           `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`,
           `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`,
           `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`
@@ -275,14 +291,11 @@
           try {
             const res = await fetch(url);
             const data = await res.json();
-            // Cek apakah response mengandung format JSON Binderbyte yang valid (status code ada)
             if (data && typeof data.status !== 'undefined') {
               result = data;
               break; 
             }
-          } catch (proxyErr) {
-            // Jika proxy gagal parsing JSON atau timeout, lanjut ke proxy berikutnya
-          }
+          } catch (proxyErr) {}
         }
         
         if (!result) {
@@ -452,12 +465,10 @@
         }).format(d);
       };
 
-      const displayTitle = isSupplier ? pkg.supplierName : (pkg.itemName ? pkg.itemName : `Paket ${courierAvatar.label}`);
       const etaDisplay = formatEtaBadge(pkg.eta);
 
       const [isFlying, setIsFlying] = useState(false);
 
-      // Pastikan efek terbang direset jika item dimount di Riwayat Tiba
       useEffect(() => {
         if (pkg.status === 'DELIVERED') {
           setIsFlying(false);
@@ -466,72 +477,96 @@
 
       const handleMarkDelivered = (e) => {
         e.stopPropagation();
-        setIsFlying(true); // Mulai animasi terbang
+        setIsFlying(true);
         setTimeout(() => {
-          onMarkDelivered(pkg); // Trigger perubahan ke Riwayat Tiba setelah animasi selesai
+          onMarkDelivered(pkg);
         }, 600);
       };
+
+      const getSupplierIconConfig = () => {
+        if (!pkg.eta) return { icon: HelpCircle, animate: "animate-question-pulse" };
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const etaDate = new Date(pkg.eta.replace(' ', 'T'));
+        etaDate.setHours(0, 0, 0, 0);
+
+        if (isNaN(etaDate.getTime())) return { icon: HelpCircle, animate: "animate-question-pulse" };
+
+        const diffTime = etaDate - today;
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+        if (diffDays === 0) return { icon: Truck, animate: "animate-truck-drive", showWind: true };
+        if (diffDays === 1) return { icon: Package, animate: "animate-package-jitter" };
+        return { icon: Hourglass, animate: "animate-hourglass-flip" };
+      };
+
+      const supplierIconData = getSupplierIconConfig();
+      const IconComp = supplierIconData.icon;
+
+      const displayTitle = isSupplier ? pkg.itemName : (pkg.itemName ? pkg.itemName : `Paket ${courierAvatar.label}`);
+      const displaySubtitle = isSupplier ? pkg.supplierName : (latestEvent?.description || 'Status belum diperbarui');
 
       return (
         <div className={`group relative bg-white dark:bg-[#120a07] rounded-[24px] shadow-sm border border-gray-100 dark:border-[#2a1b15] overflow-hidden transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${isFlying ? 'opacity-0 -translate-y-24 -translate-x-16 scale-50 pointer-events-none z-50' : 'mb-2 dark:hover:border-orange-500/50 dark:hover:shadow-[0_0_25px_rgba(249,115,22,0.15)]'}`}>
           <div className="relative z-10">
             <div 
-              className={`px-3 py-2.5 sm:px-4 sm:py-3 flex flex-row items-stretch justify-between gap-3 cursor-pointer`}
-              onClick={onToggleExpand}
+              className={`px-3 py-2.5 sm:px-4 sm:py-3 flex flex-row items-stretch justify-between gap-3 ${!isSupplier ? 'cursor-pointer' : ''}`}
+              onClick={!isSupplier ? onToggleExpand : undefined}
             >
-              {/* KOLOM KIRI (LEBIH LEBAR JIKA SUPPLIER AGAR INLINE MUAT) */}
               <div className={`flex flex-col items-stretch justify-center gap-1 shrink-0 ${isSupplier ? 'w-[80px] sm:w-[95px]' : 'w-[60px] sm:w-[68px]'}`}>
                 
-                {/* AVATAR BOX (ETA INLINE / COURIER) */}
-                <div className={isSupplier ? `w-full py-1.5 px-1.5 rounded-lg bg-gray-800 dark:bg-[#1a120e] border border-gray-700 dark:border-[#381c0e] text-white flex items-center justify-center font-black text-[10px] sm:text-[11px] shadow-sm tracking-tight leading-none gap-1.5 overflow-hidden` : courierAvatar.className}>
-                  {isSupplier ? (
-                    pkg.eta ? (
-                      <div className="relative flex items-center gap-1.5">
-                        {/* Speed Wind Lines Behind Truck */}
-                        {pkg.status !== 'DELIVERED' && (
-                          <div className="absolute right-full mr-0.5 flex flex-col gap-[2px]">
-                            <div className="w-1.5 h-[1.5px] bg-white/40 rounded-full animate-wind-1"></div>
-                            <div className="w-2.5 h-[1.5px] bg-white/60 rounded-full animate-wind-2"></div>
-                            <div className="w-2 h-[1.5px] bg-white/40 rounded-full animate-wind-3"></div>
-                          </div>
-                        )}
-                        <Truck size={14} strokeWidth={2.5} className={`shrink-0 ${pkg.status !== 'DELIVERED' ? "animate-truck-drive" : ""}`} />
-                        <span className="truncate pt-[1px]">{etaDisplay}</span>
-                      </div>
-                    ) : (
-                      <>
-                        <Clock size={14} strokeWidth={2.5} className="shrink-0 opacity-70" />
-                        <span className="flex items-center justify-center space-x-[3px]">
-                          <span className="w-1 h-1 bg-white rounded-full animate-[bounce_1.4s_infinite_0ms]"></span>
-                          <span className="w-1 h-1 bg-white rounded-full animate-[bounce_1.4s_infinite_200ms]"></span>
-                          <span className="w-1 h-1 bg-white rounded-full animate-[bounce_1.4s_infinite_400ms]"></span>
-                        </span>
-                      </>
-                    )
-                  ) : (
-                    <span className="truncate">{etaDisplay ? etaDisplay : courierAvatar.label}</span>
-                  )}
-                </div>
-                
-                {/* BADGE BAWAH */}
-                {isSupplier && pkg.status !== 'DELIVERED' ? (
-                  <SupplierEtaBadge eta={pkg.eta} />
+                {isSupplier && currentView === 'riwayat' ? (
+                  <div className="flex items-center justify-center w-full h-[58px] sm:h-[64px] bg-black text-white rounded-lg font-black text-[11px] sm:text-sm uppercase tracking-widest shadow-sm dark:bg-white dark:text-black">
+                    <CheckCircle size={14} className="mr-1.5 shrink-0" strokeWidth={3} />
+                    TIBA
+                  </div>
                 ) : (
-                  <StatusBadge status={pkg.status} />
+                  <>
+                    <div className={isSupplier ? `w-full py-1.5 px-1.5 rounded-lg bg-gray-800 dark:bg-[#1a120e] border border-gray-700 dark:border-[#381c0e] text-white flex items-center justify-center font-black text-[10px] sm:text-[11px] shadow-sm tracking-tight leading-none gap-1.5 overflow-hidden` : courierAvatar.className}>
+                      {isSupplier ? (
+                        <div className="relative flex items-center gap-1.5">
+                          {supplierIconData.showWind && pkg.status !== 'DELIVERED' && (
+                            <div className="absolute right-full mr-0.5 flex flex-col gap-[2px]">
+                              <div className="w-1.5 h-[1.5px] bg-white/40 rounded-full animate-wind-1"></div>
+                              <div className="w-2.5 h-[1.5px] bg-white/60 rounded-full animate-wind-2"></div>
+                              <div className="w-2 h-[1.5px] bg-white/40 rounded-full animate-wind-3"></div>
+                            </div>
+                          )}
+                          <IconComp size={14} strokeWidth={2.5} className={`shrink-0 ${pkg.status !== 'DELIVERED' ? supplierIconData.animate : ""}`} />
+                          <span className="truncate pt-[1px]">{etaDisplay || '...'}</span>
+                        </div>
+                      ) : (
+                        <span className="truncate">{etaDisplay ? etaDisplay : courierAvatar.label}</span>
+                      )}
+                    </div>
+                    {isSupplier && pkg.status !== 'DELIVERED' ? (
+                      <SupplierEtaBadge eta={pkg.eta} />
+                    ) : (
+                      <StatusBadge status={pkg.status} />
+                    )}
+                  </>
                 )}
               </div>
 
               <div className="flex-1 min-w-0 flex flex-col justify-center">
-                {!isSupplier && (
+                {isSupplier ? (
+                  pkg.sj && (
+                    <span className="text-[9px] sm:text-[10px] text-orange-600 dark:text-orange-400 font-black uppercase tracking-tight mb-0.5">
+                      SJ: {pkg.sj}
+                    </span>
+                  )
+                ) : (
                   <span className="text-[8px] sm:text-[9px] text-gray-400 dark:text-gray-500 font-medium mb-0.5 tracking-wider uppercase group-hover:dark:text-orange-400/80 transition-colors">
                     {formatDate(firstEventDate)}
                   </span>
                 )}
+                
                 <h3 className="font-bold text-gray-900 dark:text-white text-sm sm:text-base leading-tight break-words whitespace-normal mb-1 tracking-tight group-hover:dark:text-orange-50 transition-colors">
                   {displayTitle}
                 </h3>
                 <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2 leading-snug font-medium">
-                  {isSupplier ? pkg.itemName : (latestEvent?.description || 'Status belum diperbarui')}
+                  {displaySubtitle}
                 </p>
               </div>
 
@@ -546,7 +581,6 @@
                   </button>
                 )}
                 
-                {/* UNDO BUTTON (Khusus Supplier di Riwayat) */}
                 {isSupplier && pkg.status === 'DELIVERED' && currentView === 'riwayat' && (
                   <button 
                     onClick={(e) => { e.stopPropagation(); onUndoDelivered(pkg); }}
@@ -578,66 +612,43 @@
               </div>
             </div>
 
-            {isExpanded && (
+            {isExpanded && !isSupplier && (
               <div className="bg-gray-50 dark:bg-[#0a0503] p-4 sm:p-5 border-t border-gray-100 dark:border-[#2a1b15]">
                 <div className="mb-5 bg-white dark:bg-[#120a07] p-3 rounded-xl border border-gray-200 dark:border-[#2a1b15] flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
                   <div>
-                    <p className="text-xs text-gray-500 dark:text-gray-500 font-semibold uppercase tracking-wider mb-0.5">
-                      {isSupplier ? 'Nomor SJ' : 'Nomor Resi'}
-                    </p>
-                    <p className="font-mono text-sm font-semibold text-gray-900 dark:text-white">
-                      {isSupplier ? (pkg.sj || '-') : pkg.awb}
-                    </p>
+                    <p className="text-xs text-gray-500 font-semibold uppercase tracking-wider mb-0.5">Nomor Resi</p>
+                    <p className="font-mono text-sm font-semibold text-gray-900 dark:text-white">{pkg.awb}</p>
                   </div>
                   <div className="sm:text-right mt-2 sm:mt-0">
-                    <p className="text-xs text-gray-500 dark:text-gray-500 font-semibold uppercase tracking-wider mb-0.5">
-                      {isSupplier ? 'Kategori' : 'Kurir'}
-                    </p>
-                    <p className="text-sm font-semibold text-gray-900 dark:text-white">
-                      {isSupplier ? 'Note Supplier' : courierNameFull}
-                    </p>
+                    <p className="text-xs text-gray-500 font-semibold uppercase tracking-wider mb-0.5">Kurir</p>
+                    <p className="text-sm font-semibold text-gray-900 dark:text-white">{courierNameFull}</p>
                   </div>
                 </div>
 
-                <h4 className="text-xs font-bold text-gray-400 dark:text-gray-600 mb-4 tracking-wider uppercase">
-                  {isSupplier ? 'Detail Catatan' : 'Riwayat Perjalanan'}
-                </h4>
-                
-                {isSupplier ? (
-                  <div className="bg-white dark:bg-[#120a07] p-4 rounded-xl border border-gray-200 dark:border-[#2a1b15]">
-                     <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed font-medium">
-                        {pkg.itemName}
-                     </p>
-                     <div className="mt-4 pt-3 border-t border-gray-100 dark:border-[#2a1b15] flex justify-between items-center">
-                        <span className="text-[10px] text-gray-400 dark:text-gray-500 font-bold uppercase tracking-wide">Dibuat Pada</span>
-                        <span className="text-[11px] text-gray-600 dark:text-gray-400 font-semibold">{formatDate(pkg.addedAt)}</span>
-                     </div>
-                  </div>
-                ) : (
-                  <div className="relative border-l-2 border-gray-200 dark:border-[#2a1b15] ml-3 space-y-6 pb-2">
-                    {(pkg.timeline || []).map((event, index) => (
-                      <div key={event.id || index} className="relative pl-6">
-                        <div className={`absolute -left-[9px] top-1 h-4 w-4 rounded-full border-2 ${index === 0 ? 'bg-black dark:bg-orange-500 ring-4 ring-gray-200 dark:ring-[#2a1b15] border-white dark:border-[#120a07] dark:shadow-[0_0_10px_rgba(249,115,22,0.5)]' : 'bg-gray-300 dark:bg-[#2a1b15] border-gray-50 dark:border-[#0a0503]'}`}></div>
-                        
-                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-1.5">
-                          <div className="pr-4">
-                            <p className={`text-sm leading-relaxed ${index === 0 ? 'font-semibold text-gray-900 dark:text-orange-50' : 'text-gray-600 dark:text-gray-400 font-medium'}`}>
-                              {event.description}
+                <h4 className="text-xs font-bold text-gray-400 dark:text-gray-600 mb-4 tracking-wider uppercase">Riwayat Perjalanan</h4>
+                <div className="relative border-l-2 border-gray-200 dark:border-[#2a1b15] ml-3 space-y-6 pb-2">
+                  {(pkg.timeline || []).map((event, index) => (
+                    <div key={event.id || index} className="relative pl-6">
+                      <div className={`absolute -left-[9px] top-1 h-4 w-4 rounded-full border-2 ${index === 0 ? 'bg-black dark:bg-orange-500 ring-4 ring-gray-200 dark:ring-[#2a1b15] border-white dark:border-[#120a07] dark:shadow-[0_0_10px_rgba(249,115,22,0.5)]' : 'bg-gray-300 dark:bg-[#2a1b15] border-gray-50 dark:border-[#0a0503]'}`}></div>
+                      
+                      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-1.5">
+                        <div className="pr-4">
+                          <p className={`text-sm leading-relaxed ${index === 0 ? 'font-semibold text-gray-900 dark:text-orange-50' : 'text-gray-600 dark:text-gray-400 font-medium'}`}>
+                            {event.description}
+                          </p>
+                          {event.location && (
+                            <p className="text-xs font-semibold text-black dark:text-gray-500 mt-1 flex items-center gap-1">
+                              <MapPin size={12} /> {event.location}
                             </p>
-                            {event.location && (
-                              <p className="text-xs font-semibold text-black dark:text-gray-500 mt-1 flex items-center gap-1">
-                                <MapPin size={12} /> {event.location}
-                              </p>
-                            )}
-                          </div>
-                          <span className="text-[11px] font-medium text-gray-400 dark:text-gray-600 whitespace-nowrap mt-1 sm:mt-0">
-                            {formatDate(event.timestamp)}
-                          </span>
+                          )}
                         </div>
+                        <span className="text-[11px] font-medium text-gray-400 dark:text-gray-600 whitespace-nowrap mt-1 sm:mt-0">
+                          {formatDate(event.timestamp)}
+                        </span>
                       </div>
-                    ))}
-                  </div>
-                )}
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>
@@ -651,12 +662,10 @@
     function App() {
       const [packages, setPackages] = useState([]);
       
-      // ONLINE FORM STATES
       const [inputValue, setInputValue] = useState('');
       const [itemName, setItemName] = useState('');
       const [selectedCourier, setSelectedCourier] = useState(COURIERS[0].id);
       
-      // SUPPLIER FORM STATES
       const [supplierName, setSupplierName] = useState('');
       const [supplierSj, setSupplierSj] = useState('');
       const [supplierNote, setSupplierNote] = useState('');
@@ -674,7 +683,6 @@
       const [expandedAwb, setExpandedAwb] = useState(null);
       const [isSalesModalOpen, setIsSalesModalOpen] = useState(false);
       
-      // EDIT STATES
       const [editingPackage, setEditingPackage] = useState(null);
       const [editItemName, setEditItemName] = useState('');
       const [editSupplierName, setEditSupplierName] = useState('');
@@ -686,7 +694,6 @@
       const [isDropdownOpen, setIsDropdownOpen] = useState(false);
       const [activeTab, setActiveTab] = useState('online');
 
-      // Sticky Header State
       const [isScrolled, setIsScrolled] = useState(false);
 
       useEffect(() => {
@@ -697,7 +704,6 @@
         return () => window.removeEventListener('scroll', handleScroll);
       }, []);
 
-      // Theme State (Dark Mode)
       const [theme, setTheme] = useState(() => {
         if (typeof window !== 'undefined') {
           return localStorage.getItem('theme') || 'light';
@@ -715,7 +721,6 @@
         localStorage.setItem('theme', theme);
       }, [theme]);
 
-      // Firebase Auth
       useEffect(() => {
         if (!auth) return;
         const initAuth = async () => {
@@ -727,7 +732,6 @@
         return () => unsubscribe();
       }, []);
 
-      // Load & Sync from Firestore
       useEffect(() => {
         if (!user || !db) return;
         const publicDataRef = collection(db, 'tracked_packages');
@@ -735,7 +739,6 @@
         const unsubscribe = onSnapshot(publicDataRef, (snapshot) => {
           const pkgs = [];
           snapshot.forEach(doc => {
-            // Jangan memasukkan metadata sistem sync global ke dalam data paket
             if (doc.id !== '_system_sync_status_') {
               pkgs.push(doc.data());
             }
@@ -749,16 +752,11 @@
         return () => unsubscribe();
       }, [user]);
 
-      // Ref untuk packages agar useEffect AutoSync tidak terpicu ulang setiap kali ada perubahan state packages
       const packagesRef = useRef(packages);
       useEffect(() => {
         packagesRef.current = packages;
       }, [packages]);
 
-      // ==========================================
-      // AUTO-SYNC TERJADWAL (TERPUSAT DI FIRESTORE)
-      // Menghindari sinkronisasi ulang saat membuka web
-      // ==========================================
       useEffect(() => {
         if (!user || !db) return;
 
@@ -771,7 +769,6 @@
           const day = now.getDay();
           const hour = now.getHours();
 
-          // Buat string tanggal lokal (YYYY-MM-DD)
           const y = now.getFullYear();
           const m = String(now.getMonth() + 1).padStart(2, '0');
           const d = String(now.getDate()).padStart(2, '0');
@@ -781,7 +778,6 @@
           let shouldSync = false;
 
           try {
-            // Memeriksa status sinkronisasi global dari Firestore
             const syncDocRef = doc(db, 'tracked_packages', '_system_sync_status_');
             const syncSnap = await getDoc(syncDocRef);
             
@@ -792,29 +788,24 @@
               }
             }
 
-            // Sesi Pagi & Sore (Lewati hari Minggu - Day 0)
             if (day !== 0) {
               if (hour >= 9 && hour < 15 && !globalSyncState.morningDone) {
                 shouldSync = true;
                 globalSyncState.morningDone = true;
               } else if (hour >= 15 && !globalSyncState.afternoonDone) {
                 shouldSync = true;
-                globalSyncState.morningDone = true; // Tandai pagi selesai juga jika terlewat
+                globalSyncState.morningDone = true;
                 globalSyncState.afternoonDone = true;
               }
             }
 
-            // Lakukan Sinkronisasi jika memenuhi syarat dan ada paket
             if (shouldSync && pkgs.length > 0) {
-              // Lock dengan menyimpan status ke Firestore sebelum looping
-              // untuk mencegah pengguna lain yang membuka web secara bersamaan memicu penarikan lagi
               await setDoc(syncDocRef, globalSyncState);
 
               if (isMounted) setIsAutoSyncing(true);
               
               for (const pkg of pkgs) {
                 if (!isMounted) break;
-                // SKIP YANG SUDAH TIBA DAN SKIP TIPE SUPPLIER (Karena Manual)
                 if (pkg.status === 'DELIVERED' || pkg.type === 'supplier') continue;
                 
                 try {
@@ -834,37 +825,28 @@
             console.error("Gagal membaca atau menulis status sync global", e);
           }
 
-          // ===============================================
-          // HITUNG MUNDUR KE JADWAL BERIKUTNYA (9 AM / 3 PM)
-          // ===============================================
           if (!isMounted) return;
 
           const nextTarget = new Date(now);
-          nextTarget.setMinutes(0, 0, 0); // Reset ke menit 00:00:00
+          nextTarget.setMinutes(0, 0, 0);
 
           if (day === 0) {
-            // Jika hari ini Minggu, jadwal berikutnya Senin jam 9 pagi
             nextTarget.setDate(now.getDate() + 1);
             nextTarget.setHours(9);
           } else {
             if (hour < 9) {
-              // Menuju jam 9 pagi hari ini
               nextTarget.setHours(9);
             } else if (hour >= 9 && hour < 15) {
-              // Menuju jam 3 sore hari ini
               nextTarget.setHours(15);
             } else {
-              // Menuju jam 9 pagi besok harinya
               nextTarget.setDate(now.getDate() + 1);
               nextTarget.setHours(9);
-              // Jika besok adalah Minggu, lompat ke Senin
               if (nextTarget.getDay() === 0) {
                 nextTarget.setDate(nextTarget.getDate() + 1);
               }
             }
           }
 
-          // Kalkulasi jeda milidetik dari sekarang sampai waktu target tiba
           const delay = nextTarget.getTime() - new Date().getTime();
           
           timeoutId = setTimeout(() => {
@@ -872,7 +854,6 @@
           }, Math.max(delay, 1000));
         };
 
-        // Beri jeda 3 detik di awal agar data dari Firestore sempat masuk ke packagesRef
         const initTimeout = setTimeout(() => {
           checkAndRunAutoSync();
         }, 3000);
@@ -880,11 +861,10 @@
         return () => {
           isMounted = false;
           clearTimeout(initTimeout);
-          clearTimeout(timeoutId); // Bersihkan timeout, BUKAN interval
+          clearTimeout(timeoutId);
         };
-      }, [user, db]); // Dependency `packages` dihilangkan agar tidak looping
+      }, [user, db]);
 
-      // TAMBAH ONLINE RESI
       const performTracking = async (awbToTrack, courierToTrack, itemNameToTrack, packageType = 'online') => {
         setIsLoading(true);
         setError('');
@@ -917,7 +897,6 @@
         await performTracking(inputValue.trim().toUpperCase(), selectedCourier, itemName.trim(), 'online');
       };
 
-      // TAMBAH NOTE SUPPLIER
       const handleAddSupplierNote = async (e) => {
         e.preventDefault();
         if (!user || !db) return;
@@ -959,7 +938,6 @@
         }
       };
 
-      // HAPUS DATA
       const requestRemovePackage = (pkg) => setPackageToDelete(pkg);
 
       const confirmRemovePackage = async () => {
@@ -970,7 +948,6 @@
         } catch (err) { console.error("Failed to remove package", err); }
       };
 
-      // EDIT DATA
       const requestEditPackage = (pkg) => {
         setEditingPackage(pkg);
         setEditItemName(pkg.itemName || '');
@@ -999,7 +976,6 @@
         } catch (err) { console.error("Failed to edit package", err); }
       };
 
-      // TANDAI SUPPLIER TIBA
       const markSupplierDelivered = async (pkg) => {
         if (!user || !db) return;
         try {
@@ -1010,7 +986,6 @@
         } catch (err) { console.error("Failed to update status", err); }
       };
 
-      // UNDO SUPPLIER TIBA (Kembalikan ke Pantauan)
       const undoSupplierDelivered = async (pkg) => {
         if (!user || !db) return;
         try {
@@ -1021,21 +996,15 @@
         } catch (err) { console.error("Failed to undo status", err); }
       };
 
-      // HISTORY ARSIP LOGIC
       const checkIsArchived = (pkg) => {
         if (pkg.status !== 'DELIVERED') return false;
-        
-        // Khusus Supplier: Langsung dipindahkan ke riwayat tanpa menunggu
         if (pkg.type === 'supplier') return true;
-
-        // Khusus Online: Tunggu 1 hari agar masuk riwayat
         const dateStr = (pkg.timeline && pkg.timeline.length > 0) ? pkg.timeline[0].timestamp : pkg.lastUpdated;
         const d = new Date((dateStr || '').replace(' ', 'T'));
         if (isNaN(d.getTime())) return false;
         return (new Date().getTime() - d.getTime()) >= (24 * 60 * 60 * 1000); 
       };
 
-      // PEMISAHAN DATA ONLINE & SUPPLIER
       const allOnlinePackages = packages.filter(p => !p.type || p.type === 'online');
       const allSupplierPackages = packages.filter(p => p.type === 'supplier');
 
@@ -1047,7 +1016,6 @@
       const archivedSupplier = allSupplierPackages.filter(p => checkIsArchived(p));
       const sourceSupplierPackages = currentView === 'aktif' ? activeSupplier : archivedSupplier;
 
-      // FUNGSI FILTER GLOBAL (Juga memfilter Nama Supplier)
       const filterAndSort = (pkgs) => {
         return pkgs.filter(pkg => {
           const query = searchQuery.toLowerCase();
@@ -1062,8 +1030,21 @@
           if (sortBy === 'newest') return getPackageCreationDate(b) - getPackageCreationDate(a);
           if (sortBy === 'oldest') return getPackageCreationDate(a) - getPackageCreationDate(b);
           if (sortBy === 'status') {
-            const statusOrder = { 'PENDING': 1, 'PICKUP': 2, 'TRANSIT': 3, 'DELIVERING': 4, 'DELIVERED': 5 };
-            return (statusOrder[a.status] || 99) - (statusOrder[b.status] || 99);
+            if (a.type === 'supplier') {
+              const getSupplierUrgencyValue = (p) => {
+                if (!p.eta) return 9999;
+                const today = new Date(); today.setHours(0,0,0,0);
+                const eta = new Date(p.eta.replace(' ', 'T')); eta.setHours(0,0,0,0);
+                if (isNaN(eta.getTime())) return 9999;
+                const diff = Math.ceil((eta - today) / (1000 * 60 * 60 * 24));
+                if (diff < 0) return diff - 100;
+                return diff;
+              };
+              return getSupplierUrgencyValue(a) - getSupplierUrgencyValue(b);
+            } else {
+              const onlineStatusOrder = { 'DELIVERING': 1, 'TRANSIT': 2, 'PICKUP': 3, 'PENDING': 4, 'DELIVERED': 5 };
+              return (onlineStatusOrder[a.status] || 99) - (onlineStatusOrder[b.status] || 99);
+            }
           }
           return 0;
         });
@@ -1077,13 +1058,11 @@
           
           <PwaInstallPrompt />
 
-          {/* Latar Belakang Aurora Flame (Statis) */}
           <div className="fixed inset-0 z-[-1] hidden dark:block bg-[#080302] pointer-events-none">
             <div className="absolute top-[-10%] left-[-10%] w-[60vw] h-[60vw] max-w-[400px] max-h-[400px] bg-orange-600/15 blur-[80px] rounded-full"></div>
             <div className="absolute bottom-[-10%] right-[-10%] w-[60vw] h-[60vw] max-w-[400px] max-h-[400px] bg-red-600/15 blur-[80px] rounded-full"></div>
           </div>
 
-          {/* Normal Header: Title */}
           <header className="pt-6 sm:pt-8 px-3 sm:px-8">
             <div className="max-w-2xl mx-auto text-center mb-2 sm:mb-3">
               <h1 
@@ -1095,14 +1074,11 @@
             </div>
           </header>
 
-          {/* Sticky Toolbar Section */}
           <div className={`sticky top-0 z-[100] w-full transition-all duration-300 ${isScrolled ? 'bg-[#F8FAFC]/80 dark:bg-[#080302]/80 backdrop-blur-xl border-b border-gray-200 dark:border-[#2a1b15] py-2' : 'bg-transparent pt-1 pb-3'}`}>
             <div className="max-w-2xl mx-auto px-2 sm:px-8 relative">
               
-              {/* Toolbar: Dynamic Title, Toggle, & Action Buttons */}
               <div className="flex items-center justify-between px-1 h-11 sm:h-12 gap-1 sm:gap-2">
                 
-                {/* Bagian Kiri: Search Bar ATAU Judul Dinamis */}
                 {isSearchActive ? (
                   <div className="flex-1 relative flex items-center h-full transition-all animate-in fade-in slide-in-from-left-4 duration-300">
                     <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
@@ -1126,10 +1102,8 @@
                 ) : (
                   <div className="flex-1 relative flex items-center h-full animate-in fade-in slide-in-from-right-4 duration-300 z-50">
                     
-                    {/* Overlay Transparan untuk Menutup Dropdown Saat Diklik di Luar */}
                     {isDropdownOpen && <div className="fixed inset-0 z-40" onClick={() => setIsDropdownOpen(false)}></div>}
 
-                    {/* DYNAMIC TITLE GROUP */}
                     <button 
                       onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                       className="relative z-50 flex items-center gap-1 sm:gap-1.5 focus:outline-none group max-w-full origin-left"
@@ -1155,7 +1129,6 @@
                       </h2>
                     </button>
                     
-                    {/* GLOBAL MENU DROPDOWN */}
                     <div 
                       className={`absolute top-[120%] mt-1 sm:mt-2 left-0 w-56 sm:w-60 bg-white dark:bg-[#130d0a] border border-gray-100 dark:border-[#2a1b15] rounded-[20px] shadow-2xl py-1.5 z-50 overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] origin-top-left ${
                         isDropdownOpen 
@@ -1182,7 +1155,6 @@
                   </div>
                 )}
 
-                {/* Bagian Tengah: Toggle Online/Supplier */}
                 {!isSearchActive && (
                   <div className="flex justify-center shrink-0 z-40 mx-0.5 sm:mx-1">
                     <div className="relative flex items-center h-10 sm:h-12 bg-gray-200/80 dark:bg-[#120a07] rounded-[14px] sm:rounded-2xl border border-gray-200 dark:border-[#2a1b15] overflow-hidden p-0 w-24 sm:w-[110px] shadow-sm">
@@ -1197,7 +1169,7 @@
                         OL
                       </button>
                       <button
-                        onClick={() => { setActiveTab('supplier'); setIsSearchActive(false); setSearchQuery(''); setCurrentView('aktif'); }}
+                        onClick={() => { setActiveTab('supplier'); setIsSearchActive(false); setSearchQuery(''); setCurrentView('aktif'); setSortBy('status'); }}
                         className={`relative z-10 w-1/2 h-full flex items-center justify-center text-[11px] sm:text-xs font-bold tracking-widest uppercase transition-colors duration-300 ${activeTab === 'supplier' ? 'text-black dark:text-white' : 'text-gray-500 hover:text-gray-800 dark:hover:text-gray-300'}`}
                       >
                         SUP
@@ -1206,7 +1178,6 @@
                   </div>
                 )}
 
-                {/* Bagian Kanan: Ikon */}
                 <div className="flex items-center gap-1 sm:gap-2 shrink-0">
                   
                   {!isSearchActive && (activeTab === 'online' ? allOnlinePackages.length : allSupplierPackages.length) > 0 && (
@@ -1252,7 +1223,6 @@
             </div>
           </div>
 
-          {/* Main List Container */}
           <main className="w-full relative">
             <div className="w-full pt-4 overflow-x-hidden">
               <div 
@@ -1260,7 +1230,6 @@
                 style={{ transform: activeTab === 'online' ? 'translateX(0%)' : 'translateX(-50%)' }}
               >
                 
-                {/* HALAMAN ONLINE */}
                 <section className="w-1/2">
                   <div className="max-w-2xl mx-auto px-3 sm:px-8">
                     <div className="space-y-4">
@@ -1307,7 +1276,6 @@
                   </div>
                 </section>
 
-                {/* HALAMAN SUPPLIER */}
                 <section className="w-1/2">
                   <div className="max-w-2xl mx-auto px-3 sm:px-8">
                     <div className="space-y-4">
@@ -1358,7 +1326,6 @@
             </div>
           </main>
           
-          {/* FOOTER AREA */}
           <footer className="mt-16 mb-8 flex flex-col items-center justify-center gap-10">
             
             <div className="w-full relative p-1.5 bg-gray-100 dark:bg-[#120a07] rounded-full flex items-center border border-gray-200 dark:border-[#26150c]">
@@ -1401,7 +1368,6 @@
 
           </footer>
 
-          {/* MAIN ADD MODAL (ONLINE & SUPPLIER) */}
           {isModalOpen && (
             <div 
               className="fixed inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-sm z-[999] flex items-end sm:items-center justify-center sm:p-4"
@@ -1422,11 +1388,10 @@
                 
                 <div className="relative z-10 p-6 max-h-[75vh] overflow-y-auto">
                   {activeTab === 'online' ? (
-                    // FORM ONLINE
                     <form onSubmit={handleAddPackage} className="flex flex-col gap-5">
                       <div className="space-y-5">
                         <div className="relative">
-                          <label className="block text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2 ml-1">Nomor Resi</label>
+                          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 ml-1">Nomor Resi</label>
                           <div className="relative">
                             <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400">
                               <Search size={20} />
@@ -1444,7 +1409,7 @@
                         </div>
 
                         <div>
-                          <label className="block text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2 ml-1">Pilih Kurir</label>
+                          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 ml-1">Pilih Kurir</label>
                           <select
                             value={selectedCourier}
                             onChange={(e) => setSelectedCourier(e.target.value)}
@@ -1458,7 +1423,7 @@
                         </div>
 
                         <div>
-                          <label className="block text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2 ml-1">Nama Barang (Opsional)</label>
+                          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 ml-1">Nama Barang (Opsional)</label>
                           <div className="relative">
                             <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400">
                               <Package size={20} />
@@ -1504,11 +1469,10 @@
                       </div>
                     </form>
                   ) : (
-                    // FORM SUPPLIER
                     <form onSubmit={handleAddSupplierNote} className="flex flex-col gap-5">
                       <div className="space-y-5">
                         <div className="relative">
-                          <label className="block text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2 ml-1">Nama Supplier</label>
+                          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 ml-1">Nama Supplier</label>
                           <div className="relative">
                             <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400">
                               <User size={20} />
@@ -1526,7 +1490,7 @@
                         </div>
 
                         <div className="relative">
-                          <label className="block text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2 ml-1">Nomor SJ (Surat Jalan)</label>
+                          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 ml-1">Nomor SJ (Surat Jalan)</label>
                           <div className="relative">
                             <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400">
                               <FileText size={20} />
@@ -1542,7 +1506,7 @@
                         </div>
 
                         <div className="relative">
-                          <label className="block text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2 ml-1">Nama Barang / Notes</label>
+                          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 ml-1">Nama Barang / Notes</label>
                           <div className="relative">
                             <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400">
                               <Package size={20} />
@@ -1559,7 +1523,7 @@
                         </div>
 
                         <div className="relative">
-                          <label className="block text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2 ml-1">Estimasi Tiba (Opsional)</label>
+                          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 ml-1">Estimasi Tiba (Opsional)</label>
                           <div className="relative">
                             <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400">
                               <Calendar size={20} />
@@ -1592,7 +1556,7 @@
                           {isLoading ? (
                             <>
                               <RefreshCw size={20} className="animate-spin" />
-                              Menyimpan...
+                              Menghubungkan ke Server...
                             </>
                           ) : (
                             <>
@@ -1609,7 +1573,6 @@
             </div>
           )}
 
-          {/* DELETE CONFIRMATION MODAL */}
           {packageToDelete && (
             <div 
               className="fixed inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-sm z-[999] flex items-center justify-center p-4"
@@ -1646,7 +1609,6 @@
             </div>
           )}
 
-          {/* EDIT ITEM NAME MODAL */}
           {editingPackage && (
             <div 
               className="fixed inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-sm z-[999] flex items-center justify-center p-4"
@@ -1671,7 +1633,7 @@
                     {editingPackage.type === 'supplier' && (
                       <>
                         <div className="mb-4">
-                          <label className="block text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2 ml-1">Nama Supplier Baru</label>
+                          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 ml-1">Nama Supplier Baru</label>
                           <div className="relative">
                             <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400">
                               <User size={20} />
@@ -1688,7 +1650,7 @@
                           </div>
                         </div>
                         <div className="mb-4">
-                          <label className="block text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2 ml-1">Nomor SJ Baru</label>
+                          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 ml-1">Nomor SJ Baru</label>
                           <div className="relative">
                             <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400">
                               <FileText size={20} />
@@ -1706,7 +1668,7 @@
                     )}
 
                     <div className="mb-4">
-                      <label className="block text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2 ml-1">Nama Barang / Note Baru</label>
+                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 ml-1">Nama Barang / Note Baru</label>
                       <div className="relative">
                         <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400">
                           {editingPackage.type === 'supplier' ? <Package size={20} /> : <Edit2 size={20} />}
@@ -1725,7 +1687,7 @@
 
                     {editingPackage.type === 'supplier' && (
                       <div className="mb-6">
-                        <label className="block text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2 ml-1">Estimasi Tiba (Opsional)</label>
+                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 ml-1">Estimasi Tiba (Opsional)</label>
                         <div className="relative">
                           <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400">
                             <Calendar size={20} />
@@ -1761,7 +1723,6 @@
             </div>
           )}
 
-          {/* SALES PITCH MODAL */}
           {isSalesModalOpen && (
             <div 
               className="fixed inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-sm z-[999] flex items-center justify-center p-4"
@@ -1803,7 +1764,6 @@
       );
     }
 
-    // Render App
     const root = createRoot(document.getElementById('root'));
     root.render(<App />);
   </script>
