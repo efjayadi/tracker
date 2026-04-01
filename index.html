@@ -100,6 +100,16 @@
       filter: invert(1);
       cursor: pointer;
     }
+    
+    /* Smooth scroll for better experience */
+    html {
+      scroll-behavior: smooth;
+    }
+
+    /* Pull to refresh safety */
+    body {
+      overscroll-behavior-y: contain;
+    }
   </style>
 </head>
 <body class="bg-[#F8FAFC] dark:bg-[#080302] text-gray-900 dark:text-white antialiased selection:bg-black selection:text-white dark:selection:bg-white dark:selection:text-black transition-colors duration-300">
@@ -639,6 +649,17 @@
       const [isDropdownOpen, setIsDropdownOpen] = useState(false);
       const [activeTab, setActiveTab] = useState('online');
 
+      // Sticky Header State
+      const [isScrolled, setIsScrolled] = useState(false);
+
+      useEffect(() => {
+        const handleScroll = () => {
+          setIsScrolled(window.scrollY > 80);
+        };
+        window.addEventListener('scroll', handleScroll);
+        return () => window.removeEventListener('scroll', handleScroll);
+      }, []);
+
       // Theme State (Dark Mode)
       const [theme, setTheme] = useState(() => {
         if (typeof window !== 'undefined') {
@@ -1010,7 +1031,7 @@
           </div>
 
           {/* Normal Header: Title */}
-          <div className="pt-6 sm:pt-8 px-3 sm:px-8">
+          <header className="pt-6 sm:pt-8 px-3 sm:px-8">
             <div className="max-w-2xl mx-auto text-center mb-2 sm:mb-3">
               <h1 
                 className="text-5xl sm:text-6xl mb-1 tracking-wide text-gray-900 dark:text-white" 
@@ -1019,11 +1040,11 @@
                 YEN BANGUNAN
               </h1>
             </div>
-          </div>
+          </header>
 
-          {/* Header: Toolbar Container */}
-          <div className="w-full bg-transparent pt-1 pb-3 relative z-40">
-            <div className="max-w-2xl mx-auto px-2 sm:px-8 relative z-10">
+          {/* Sticky Toolbar Section */}
+          <div className={`sticky top-0 z-[100] w-full transition-all duration-300 ${isScrolled ? 'bg-[#F8FAFC]/80 dark:bg-[#080302]/80 backdrop-blur-xl border-b border-gray-200 dark:border-[#2a1b15] py-2' : 'bg-transparent pt-1 pb-3'}`}>
+            <div className="max-w-2xl mx-auto px-2 sm:px-8 relative">
               
               {/* Toolbar: Dynamic Title, Toggle, & Action Buttons */}
               <div className="flex items-center justify-between px-1 h-11 sm:h-12 gap-1 sm:gap-2">
@@ -1055,7 +1076,7 @@
                     {/* Overlay Transparan untuk Menutup Dropdown Saat Diklik di Luar */}
                     {isDropdownOpen && <div className="fixed inset-0 z-40" onClick={() => setIsDropdownOpen(false)}></div>}
 
-                    {/* DYNAMIC TITLE GROUP (Replaces absolute overlapping layers to fix click bugs) */}
+                    {/* DYNAMIC TITLE GROUP */}
                     <button 
                       onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                       className="relative z-50 flex items-center gap-1 sm:gap-1.5 focus:outline-none group max-w-full origin-left"
@@ -1081,7 +1102,7 @@
                       </h2>
                     </button>
                     
-                    {/* GLOBAL MENU DROPDOWN (ANIMASI SLIDE-DOWN HALUS) */}
+                    {/* GLOBAL MENU DROPDOWN */}
                     <div 
                       className={`absolute top-[120%] mt-1 sm:mt-2 left-0 w-56 sm:w-60 bg-white dark:bg-[#130d0a] border border-gray-100 dark:border-[#2a1b15] rounded-[20px] shadow-2xl py-1.5 z-50 overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] origin-top-left ${
                         isDropdownOpen 
@@ -1108,7 +1129,7 @@
                   </div>
                 )}
 
-                {/* Bagian Tengah: Toggle Online/Supplier (Ditampilkan Jika Tidak Sedang Mencari) */}
+                {/* Bagian Tengah: Toggle Online/Supplier */}
                 {!isSearchActive && (
                   <div className="flex justify-center shrink-0 z-40 mx-0.5 sm:mx-1">
                     <div className="relative flex items-center h-10 sm:h-12 bg-gray-200/80 dark:bg-[#120a07] rounded-[14px] sm:rounded-2xl border border-gray-200 dark:border-[#2a1b15] overflow-hidden p-0 w-24 sm:w-[110px] shadow-sm">
@@ -1176,8 +1197,10 @@
                 </div>
               </div>
             </div>
+          </div>
 
-            {/* Wrapper Daftar Resi dengan Slider Animasi */}
+          {/* Main List Container */}
+          <main className="w-full relative">
             <div className="w-full pt-4 overflow-x-hidden">
               <div 
                 className="flex transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] items-start w-[200%]"
@@ -1185,7 +1208,7 @@
               >
                 
                 {/* HALAMAN ONLINE */}
-                <div className="w-1/2">
+                <section className="w-1/2">
                   <div className="max-w-2xl mx-auto px-3 sm:px-8">
                     <div className="space-y-4">
                       {displayOnlinePackages.length === 0 ? (
@@ -1228,10 +1251,10 @@
                       )}
                     </div>
                   </div>
-                </div>
+                </section>
 
                 {/* HALAMAN SUPPLIER */}
-                <div className="w-1/2">
+                <section className="w-1/2">
                   <div className="max-w-2xl mx-auto px-3 sm:px-8">
                     <div className="space-y-4">
                       {displaySupplierPackages.length === 0 ? (
@@ -1274,14 +1297,14 @@
                       )}
                     </div>
                   </div>
-                </div>
+                </section>
 
               </div>
             </div>
-          </div>
+          </main>
           
           {/* FOOTER AREA */}
-          <div className="mt-16 mb-8 flex flex-col items-center justify-center gap-10">
+          <footer className="mt-16 mb-8 flex flex-col items-center justify-center gap-10">
             
             <div className="w-full relative p-1.5 bg-gray-100 dark:bg-[#120a07] rounded-full flex items-center border border-gray-200 dark:border-[#26150c]">
               <div 
@@ -1321,12 +1344,12 @@
               Dibuat oleh Fajar Jayadi
             </p>
 
-          </div>
+          </footer>
 
           {/* MAIN ADD MODAL (ONLINE & SUPPLIER) */}
           {isModalOpen && (
             <div 
-              className="fixed inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center sm:p-4"
+              className="fixed inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-sm z-[999] flex items-end sm:items-center justify-center sm:p-4"
               onClick={() => setIsModalOpen(false)}
             >
               <div 
@@ -1518,7 +1541,7 @@
           {/* DELETE CONFIRMATION MODAL */}
           {packageToDelete && (
             <div 
-              className="fixed inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+              className="fixed inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-sm z-[999] flex items-center justify-center p-4"
               onClick={() => setPackageToDelete(null)}
             >
               <div 
@@ -1555,7 +1578,7 @@
           {/* EDIT ITEM NAME MODAL */}
           {editingPackage && (
             <div 
-              className="fixed inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+              className="fixed inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-sm z-[999] flex items-center justify-center p-4"
               onClick={() => setEditingPackage(null)}
             >
               <div 
@@ -1653,7 +1676,7 @@
           {/* SALES PITCH MODAL */}
           {isSalesModalOpen && (
             <div 
-              className="fixed inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+              className="fixed inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-sm z-[999] flex items-center justify-center p-4"
               onClick={() => setIsSalesModalOpen(false)}
             >
               <div 
