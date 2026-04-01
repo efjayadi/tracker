@@ -91,7 +91,7 @@
     import { 
       Package, Truck, CheckCircle, Clock, RefreshCw, Trash2, 
       Search, AlertCircle, MapPin, X, Plus, Navigation, Filter, Moon, Sun, Zap, ArrowRight,
-      Download, ChevronDown
+      Download, ChevronDown, Edit2
     } from 'https://esm.sh/lucide-react@0.263.1';
     
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
@@ -343,7 +343,7 @@
       return etaStr; 
     };
 
-    const PackageCapsule = ({ pkg, onRemove, isExpanded, onToggleExpand }) => {
+    const PackageCapsule = ({ pkg, onRemove, onEdit, isExpanded, onToggleExpand }) => {
       if (!pkg) return null;
       
       const latestEvent = pkg.timeline?.[0];
@@ -392,10 +392,17 @@
                 </p>
               </div>
 
-              <div className="flex flex-col items-center justify-center border-l border-gray-100 dark:border-[#2a1b15] pl-2 sm:pl-3 shrink-0 group-hover:dark:border-orange-500/30 transition-colors">
+              <div className="flex flex-col items-center justify-center border-l border-gray-100 dark:border-[#2a1b15] pl-2 sm:pl-3 shrink-0 gap-1 sm:gap-1.5 group-hover:dark:border-orange-500/30 transition-colors">
+                <button 
+                  onClick={(e) => { e.stopPropagation(); onEdit(pkg); }}
+                  className="p-1.5 sm:p-2 rounded-xl text-gray-900 dark:text-gray-400 hover:text-white dark:hover:text-white hover:bg-blue-500 dark:hover:bg-blue-600 transition-colors"
+                  title="Edit Nama Barang"
+                >
+                  <Edit2 size={16} />
+                </button>
                 <button 
                   onClick={(e) => { e.stopPropagation(); onRemove(pkg); }}
-                  className="p-2 rounded-xl text-gray-900 dark:text-gray-400 hover:text-white dark:hover:text-white hover:bg-red-500 dark:hover:bg-red-600 transition-colors"
+                  className="p-1.5 sm:p-2 rounded-xl text-gray-900 dark:text-gray-400 hover:text-white dark:hover:text-white hover:bg-red-500 dark:hover:bg-red-600 transition-colors"
                   title="Hapus Resi"
                 >
                   <Trash2 size={16} />
@@ -468,6 +475,9 @@
       const [expandedAwb, setExpandedAwb] = useState(null);
       const [isSalesModalOpen, setIsSalesModalOpen] = useState(false);
       
+      const [editingPackage, setEditingPackage] = useState(null);
+      const [editItemName, setEditItemName] = useState('');
+
       const [isAutoSyncing, setIsAutoSyncing] = useState(false);
       const [currentView, setCurrentView] = useState('aktif');
       const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -641,6 +651,20 @@
           await deleteDoc(doc(db, 'tracked_packages', packageToDelete.awb));
           setPackageToDelete(null);
         } catch (err) { console.error("Failed to remove package", err); }
+      };
+
+      const requestEditPackage = (pkg) => {
+        setEditingPackage(pkg);
+        setEditItemName(pkg.itemName || '');
+      };
+
+      const confirmEditPackage = async (e) => {
+        e.preventDefault();
+        if (!user || !db || !editingPackage) return;
+        try {
+          await setDoc(doc(db, 'tracked_packages', editingPackage.awb), { itemName: editItemName.trim() }, { merge: true });
+          setEditingPackage(null);
+        } catch (err) { console.error("Failed to edit package", err); }
       };
 
       const checkIsArchived = (pkg) => {
@@ -875,6 +899,7 @@
                       key={pkg.awb} 
                       pkg={pkg} 
                       onRemove={requestRemovePackage}
+                      onEdit={requestEditPackage}
                       isExpanded={expandedAwb === pkg.awb}
                       onToggleExpand={() => setExpandedAwb(expandedAwb === pkg.awb ? null : pkg.awb)}
                     />
@@ -1062,6 +1087,63 @@
                       Ya, Hapus
                     </button>
                   </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* EDIT ITEM NAME MODAL */}
+          {editingPackage && (
+            <div 
+              className="fixed inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+              onClick={() => setEditingPackage(null)}
+            >
+              <div 
+                className="relative bg-white dark:bg-[#130d0a] dark:border dark:border-[#2a1b15] rounded-[32px] shadow-2xl w-full max-w-sm overflow-hidden flex flex-col transform transition-all animate-in zoom-in-95 duration-300 p-6"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="relative z-10">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-white">Edit Nama Barang</h3>
+                    <button onClick={() => setEditingPackage(null)} className="p-1.5 text-gray-400 hover:text-black dark:hover:text-white bg-gray-50 dark:bg-[#0d0906] rounded-full transition-colors">
+                      <X size={18} strokeWidth={3} />
+                    </button>
+                  </div>
+                  
+                  <form onSubmit={confirmEditPackage}>
+                    <div className="mb-6">
+                      <label className="block text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2 ml-1">Nama Barang Baru</label>
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400">
+                          <Edit2 size={20} />
+                        </div>
+                        <input
+                          type="text"
+                          value={editItemName}
+                          onChange={(e) => setEditItemName(e.target.value)}
+                          placeholder="Masukkan nama barang..."
+                          className="w-full pl-12 pr-4 py-3.5 bg-gray-50 dark:bg-[#0a0503] border border-gray-200 dark:border-[#26150c] rounded-2xl focus:bg-white dark:focus:bg-[#1a1411] focus:ring-2 focus:ring-black dark:focus:ring-orange-500 focus:border-black dark:focus:border-transparent outline-none text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 font-medium text-sm sm:text-base"
+                          autoFocus
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="flex gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setEditingPackage(null)}
+                        className="flex-1 py-3.5 rounded-2xl font-bold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-[#1f1008] hover:bg-gray-200 dark:hover:bg-[#26150c] transition-colors"
+                      >
+                        Batal
+                      </button>
+                      <button
+                        type="submit"
+                        className="flex-1 py-3.5 rounded-2xl font-bold text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700 transition-colors shadow-lg"
+                      >
+                        Simpan
+                      </button>
+                    </div>
+                  </form>
                 </div>
               </div>
             </div>
