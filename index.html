@@ -103,7 +103,7 @@
     
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
     import { getAuth, signInAnonymously, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
-    import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
+    import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, getDoc } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
 
     // ==========================================
     // 1. FIREBASE CONFIGURATION
@@ -602,7 +602,6 @@
       const [sortBy, setSortBy] = useState('oldest');
       const [packageToDelete, setPackageToDelete] = useState(null);
       const [isSearchActive, setIsSearchActive] = useState(false);
-      const [isScrolled, setIsScrolled] = useState(false);
       const [expandedAwb, setExpandedAwb] = useState(null);
       const [isSalesModalOpen, setIsSalesModalOpen] = useState(false);
       
@@ -635,15 +634,6 @@
         localStorage.setItem('theme', theme);
       }, [theme]);
 
-      // Scroll Event Listener
-      useEffect(() => {
-        const handleScroll = () => {
-          setIsScrolled(window.scrollY > 90);
-        };
-        window.addEventListener('scroll', handleScroll, { passive: true });
-        return () => window.removeEventListener('scroll', handleScroll);
-      }, []);
-
       // Firebase Auth
       useEffect(() => {
         if (!auth) return;
@@ -663,7 +653,12 @@
         
         const unsubscribe = onSnapshot(publicDataRef, (snapshot) => {
           const pkgs = [];
-          snapshot.forEach(doc => pkgs.push(doc.data()));
+          snapshot.forEach(doc => {
+            // Jangan memasukkan metadata sistem sync global ke dalam data paket
+            if (doc.id !== '_system_sync_status_') {
+              pkgs.push(doc.data());
+            }
+          });
           pkgs.sort((a, b) => getPackageCreationDate(a) - getPackageCreationDate(b));
           setPackages(pkgs);
         }, (error) => {
@@ -680,8 +675,8 @@
       }, [packages]);
 
       // ==========================================
-      // AUTO-SYNC TERJADWAL (SANGAT HEMAT KUOTA)
-      // Hanya mengecek TEPAT di jam 09:00 dan 15:00 tanpa interval 5 menit
+      // AUTO-SYNC TERJADWAL (TERPUSAT DI FIRESTORE)
+      // Menghindari sinkronisasi ulang saat membuka web
       // ==========================================
       useEffect(() => {
         if (!user || !db) return;
@@ -701,53 +696,61 @@
           const d = String(now.getDate()).padStart(2, '0');
           const dateString = `${y}-${m}-${d}`;
           
-          let syncState;
-          try {
-            syncState = JSON.parse(localStorage.getItem('yen_scheduled_sync') || '{}');
-          } catch (e) {
-            syncState = {};
-          }
-          
-          if (syncState.date !== dateString) {
-            syncState = { date: dateString, morningDone: false, afternoonDone: false };
-          }
-
+          let globalSyncState = { date: dateString, morningDone: false, afternoonDone: false };
           let shouldSync = false;
 
-          // Sesi Pagi & Sore (Lewati hari Minggu - Day 0)
-          if (day !== 0) {
-            if (hour >= 9 && hour < 15 && !syncState.morningDone) {
-              shouldSync = true;
-              syncState.morningDone = true;
-            } else if (hour >= 15 && !syncState.afternoonDone) {
-              shouldSync = true;
-              syncState.morningDone = true; // Tandai pagi selesai juga jika terlewat
-              syncState.afternoonDone = true;
-            }
-          }
-
-          // Lakukan Sinkronisasi jika memenuhi syarat
-          if (shouldSync && pkgs.length > 0) {
-            localStorage.setItem('yen_scheduled_sync', JSON.stringify(syncState));
-            if (isMounted) setIsAutoSyncing(true);
+          try {
+            // Memeriksa status sinkronisasi global dari Firestore
+            const syncDocRef = doc(db, 'tracked_packages', '_system_sync_status_');
+            const syncSnap = await getDoc(syncDocRef);
             
-            for (const pkg of pkgs) {
-              if (!isMounted) break;
-              // SKIP YANG SUDAH TIBA DAN SKIP TIPE SUPPLIER (Karena Manual)
-              if (pkg.status === 'DELIVERED' || pkg.type === 'supplier') continue;
+            if (syncSnap.exists()) {
+              const data = syncSnap.data();
+              if (data.date === dateString) {
+                globalSyncState = data;
+              }
+            }
+
+            // Sesi Pagi & Sore (Lewati hari Minggu - Day 0)
+            if (day !== 0) {
+              if (hour >= 9 && hour < 15 && !globalSyncState.morningDone) {
+                shouldSync = true;
+                globalSyncState.morningDone = true;
+              } else if (hour >= 15 && !globalSyncState.afternoonDone) {
+                shouldSync = true;
+                globalSyncState.morningDone = true; // Tandai pagi selesai juga jika terlewat
+                globalSyncState.afternoonDone = true;
+              }
+            }
+
+            // Lakukan Sinkronisasi jika memenuhi syarat dan ada paket
+            if (shouldSync && pkgs.length > 0) {
+              // Lock dengan menyimpan status ke Firestore sebelum looping
+              // untuk mencegah pengguna lain yang membuka web secara bersamaan memicu penarikan lagi
+              await setDoc(syncDocRef, globalSyncState);
+
+              if (isMounted) setIsAutoSyncing(true);
               
-              try {
-                const updatedData = await fetchTrackingFromAPI(pkg.awb, pkg.courier, pkg.itemName);
-                updatedData.type = pkg.type || 'online'; 
-                await setDoc(doc(db, 'tracked_packages', pkg.awb), updatedData, { merge: true });
-              } catch (err) {
-                console.error(`Auto-sync gagal untuk ${pkg.awb}`, err);
+              for (const pkg of pkgs) {
+                if (!isMounted) break;
+                // SKIP YANG SUDAH TIBA DAN SKIP TIPE SUPPLIER (Karena Manual)
+                if (pkg.status === 'DELIVERED' || pkg.type === 'supplier') continue;
+                
+                try {
+                  const updatedData = await fetchTrackingFromAPI(pkg.awb, pkg.courier, pkg.itemName);
+                  updatedData.type = pkg.type || 'online'; 
+                  await setDoc(doc(db, 'tracked_packages', pkg.awb), updatedData, { merge: true });
+                } catch (err) {
+                  console.error(`Auto-sync gagal untuk ${pkg.awb}`, err);
+                }
+                
+                await new Promise(resolve => setTimeout(resolve, 1500));
               }
               
-              await new Promise(resolve => setTimeout(resolve, 1500));
+              if (isMounted) setIsAutoSyncing(false);
             }
-            
-            if (isMounted) setIsAutoSyncing(false);
+          } catch (e) {
+            console.error("Gagal membaca atau menulis status sync global", e);
           }
 
           // ===============================================
@@ -995,14 +998,12 @@
             </div>
           </div>
 
-          {/* Sticky Header: Toggle & Toolbar */}
-          <div className={`sticky top-0 z-40 w-full transition-all duration-300 ${
-            isScrolled ? 'backdrop-blur-md bg-white/90 dark:bg-[#080302]/90 border-b border-gray-200 dark:border-[#2a1b15] shadow-sm pt-3 pb-3' : 'bg-transparent pt-1 pb-3'
-          }`}>
+          {/* Header: Toggle & Toolbar */}
+          <div className="w-full bg-transparent pt-1 pb-3 relative z-40">
             <div className="max-w-2xl mx-auto px-3 sm:px-8 relative z-10">
               
               {/* TOMBOL PEMILIH HALAMAN (ONLINE / SUPPLIER) */}
-              <div className={`flex justify-center transition-all duration-300 ${isScrolled ? 'mb-2' : 'mb-5'}`}>
+              <div className="flex justify-center transition-all duration-300 mb-5">
                 <div className="relative flex items-center p-1.5 bg-gray-200/80 dark:bg-[#120a07] rounded-full border border-gray-300/50 dark:border-[#2a1b15]">
                   <div 
                     className="absolute top-1.5 bottom-1.5 w-[calc(50%-6px)] bg-white dark:bg-[#2a1b15] rounded-full shadow-sm transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]"
@@ -1057,32 +1058,11 @@
                     <div className={`absolute left-0 w-full h-full flex items-center transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${activeTab === 'online' ? 'opacity-100 translate-x-0 pointer-events-auto' : 'opacity-0 -translate-x-8 pointer-events-none'}`}>
                       <button 
                         onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                        className={`absolute left-0 top-1/2 -translate-y-1/2 flex items-center gap-1.5 focus:outline-none group transition-all duration-300 origin-left ${
-                          isScrolled ? 'opacity-0 scale-95 pointer-events-none' : 'opacity-100 scale-100'
-                        }`}
+                        className="absolute left-0 top-1/2 -translate-y-1/2 flex items-center gap-1.5 focus:outline-none group origin-left"
                       >
                         <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white tracking-tight flex items-center gap-1 sm:gap-2 whitespace-nowrap">
                           {currentView === 'aktif' ? 'Pantauan Aktif' : 'Riwayat Tiba'}
                           <span className="bg-gray-200 dark:bg-[#130d0a] text-gray-600 dark:text-white px-2 sm:px-2.5 py-0.5 rounded-full text-xs sm:text-sm font-semibold flex items-center gap-1.5 dark:border dark:border-[#2a1b15]">
-                            {sourceOnlinePackages.length}
-                            {isAutoSyncing && currentView === 'aktif' && <RefreshCw size={12} className="animate-spin text-gray-400 dark:text-gray-500" />}
-                          </span>
-                          <ChevronDown size={18} className={`text-gray-400 dark:text-gray-500 transition-transform duration-300 ${isDropdownOpen ? 'rotate-180' : ''}`} />
-                        </h2>
-                      </button>
-
-                      <button 
-                        onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                        className={`absolute left-0 top-1/2 -translate-y-1/2 transition-all duration-300 origin-left flex items-center gap-1 focus:outline-none ${
-                          isScrolled ? 'opacity-100 scale-100' : 'opacity-0 scale-105 pointer-events-none'
-                        }`}
-                      >
-                        <h2 
-                          className="text-2xl sm:text-3xl text-gray-900 dark:text-white tracking-wide flex items-center gap-1 sm:gap-2 whitespace-nowrap" 
-                          style={{ fontFamily: "'Bebas Neue', sans-serif", paddingTop: '2px' }}
-                        >
-                          {currentView === 'aktif' ? 'YEN BANGUNAN' : 'RIWAYAT TIBA'}
-                          <span className="bg-gray-200 dark:bg-[#130d0a] text-gray-600 dark:text-white px-2 sm:px-2.5 py-0.5 rounded-full text-sm font-sans font-semibold tracking-normal flex items-center gap-1.5 dark:border dark:border-[#2a1b15]" style={{ paddingTop: '0' }}>
                             {sourceOnlinePackages.length}
                             {isAutoSyncing && currentView === 'aktif' && <RefreshCw size={12} className="animate-spin text-gray-400 dark:text-gray-500" />}
                           </span>
@@ -1095,31 +1075,11 @@
                     <div className={`absolute left-0 w-full h-full flex items-center transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${activeTab === 'supplier' ? 'opacity-100 translate-x-0 pointer-events-auto' : 'opacity-0 translate-x-8 pointer-events-none'}`}>
                       <button 
                         onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                        className={`absolute left-0 top-1/2 -translate-y-1/2 flex items-center gap-1.5 focus:outline-none group transition-all duration-300 origin-left ${
-                          isScrolled ? 'opacity-0 scale-95 pointer-events-none' : 'opacity-100 scale-100'
-                        }`}
+                        className="absolute left-0 top-1/2 -translate-y-1/2 flex items-center gap-1.5 focus:outline-none group origin-left"
                       >
                         <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white tracking-tight flex items-center gap-1 sm:gap-2 whitespace-nowrap">
                           {currentView === 'aktif' ? 'Pesanan Supplier' : 'Riwayat Tiba'}
                           <span className="bg-gray-200 dark:bg-[#130d0a] text-gray-600 dark:text-white px-2 sm:px-2.5 py-0.5 rounded-full text-xs sm:text-sm font-semibold flex items-center gap-1.5 dark:border dark:border-[#2a1b15]">
-                            {sourceSupplierPackages.length}
-                          </span>
-                          <ChevronDown size={18} className={`text-gray-400 dark:text-gray-500 transition-transform duration-300 ${isDropdownOpen ? 'rotate-180' : ''}`} />
-                        </h2>
-                      </button>
-
-                      <button 
-                        onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                        className={`absolute left-0 top-1/2 -translate-y-1/2 transition-all duration-300 origin-left flex items-center gap-1 focus:outline-none ${
-                          isScrolled ? 'opacity-100 scale-100' : 'opacity-0 scale-105 pointer-events-none'
-                        }`}
-                      >
-                        <h2 
-                          className="text-2xl sm:text-3xl text-gray-900 dark:text-white tracking-wide flex items-center gap-1 sm:gap-2 whitespace-nowrap" 
-                          style={{ fontFamily: "'Bebas Neue', sans-serif", paddingTop: '2px' }}
-                        >
-                          {currentView === 'aktif' ? 'PESANAN SUPPLIER' : 'RIWAYAT TIBA'}
-                          <span className="bg-gray-200 dark:bg-[#130d0a] text-gray-600 dark:text-white px-2 sm:px-2.5 py-0.5 rounded-full text-sm font-sans font-semibold tracking-normal flex items-center gap-1.5 dark:border dark:border-[#2a1b15]" style={{ paddingTop: '0' }}>
                             {sourceSupplierPackages.length}
                           </span>
                           <ChevronDown size={18} className={`text-gray-400 dark:text-gray-500 transition-transform duration-300 ${isDropdownOpen ? 'rotate-180' : ''}`} />
