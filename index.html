@@ -123,7 +123,7 @@
     import { 
       Package, Truck, CheckCircle, Clock, RefreshCw, Trash2, 
       Search, AlertCircle, MapPin, X, Plus, Navigation, Filter, Moon, Sun, Zap, ArrowRight,
-      Download, ChevronDown, Edit2, Calendar, User
+      Download, ChevronDown, Edit2, Calendar, User, RotateCcw
     } from 'https://esm.sh/lucide-react@0.263.1';
     
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
@@ -431,7 +431,7 @@
       return etaStr; 
     };
 
-    const PackageCapsule = ({ pkg, onRemove, onEdit, onMarkDelivered, isExpanded, onToggleExpand, currentView }) => {
+    const PackageCapsule = ({ pkg, onRemove, onEdit, onMarkDelivered, onUndoDelivered, isExpanded, onToggleExpand, currentView }) => {
       if (!pkg) return null;
       
       const isSupplier = pkg.type === 'supplier';
@@ -545,6 +545,18 @@
                     <CheckCircle size={16} />
                   </button>
                 )}
+                
+                {/* UNDO BUTTON (Khusus Supplier di Riwayat) */}
+                {isSupplier && pkg.status === 'DELIVERED' && currentView === 'riwayat' && (
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); onUndoDelivered(pkg); }}
+                    className="p-1.5 sm:p-2 rounded-xl text-gray-900 dark:text-gray-400 hover:text-white dark:hover:text-white hover:bg-orange-500 dark:hover:bg-orange-600 transition-colors"
+                    title="Batal Tiba (Kembalikan)"
+                  >
+                    <RotateCcw size={16} />
+                  </button>
+                )}
+
                 {currentView !== 'riwayat' && (
                   <button 
                     onClick={(e) => { e.stopPropagation(); onEdit(pkg); }}
@@ -969,6 +981,17 @@
         } catch (err) { console.error("Failed to update status", err); }
       };
 
+      // UNDO SUPPLIER TIBA (Kembalikan ke Pantauan)
+      const undoSupplierDelivered = async (pkg) => {
+        if (!user || !db) return;
+        try {
+          await setDoc(doc(db, 'tracked_packages', pkg.awb), { 
+            status: 'PENDING',
+            lastUpdated: new Date().toISOString()
+          }, { merge: true });
+        } catch (err) { console.error("Failed to undo status", err); }
+      };
+
       // HISTORY ARSIP LOGIC
       const checkIsArchived = (pkg) => {
         if (pkg.status !== 'DELIVERED') return false;
@@ -1242,6 +1265,7 @@
                               onRemove={requestRemovePackage}
                               onEdit={requestEditPackage}
                               onMarkDelivered={markSupplierDelivered}
+                              onUndoDelivered={undoSupplierDelivered}
                               isExpanded={expandedAwb === pkg.awb}
                               onToggleExpand={() => setExpandedAwb(expandedAwb === pkg.awb ? null : pkg.awb)}
                               currentView={currentView}
@@ -1288,6 +1312,7 @@
                               onRemove={requestRemovePackage}
                               onEdit={requestEditPackage}
                               onMarkDelivered={markSupplierDelivered}
+                              onUndoDelivered={undoSupplierDelivered}
                               isExpanded={expandedAwb === pkg.awb}
                               onToggleExpand={() => setExpandedAwb(expandedAwb === pkg.awb ? null : pkg.awb)}
                               currentView={currentView}
