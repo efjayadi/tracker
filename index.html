@@ -237,26 +237,32 @@
       try {
         const targetUrl = `https://api.binderbyte.com/v1/track?api_key=${BINDERBYTE_API_KEY}&courier=${courier}&awb=${awb}&_t=${Date.now()}`;
         
-        const proxies = [
-          `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`,
+        const urlsToTry = [
+          targetUrl, // Akses langsung (Binderbyte mendukung CORS untuk domain tertentu)
           `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`,
-          `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`
+          `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`,
+          `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`
         ];
 
-        let response = null;
+        let result = null;
 
-        for (const proxyUrl of proxies) {
+        for (const url of urlsToTry) {
           try {
-            const res = await fetch(proxyUrl);
-            if (res.ok) { response = res; break; }
-          } catch (proxyErr) {}
+            const res = await fetch(url);
+            const data = await res.json();
+            // Cek apakah response mengandung format JSON Binderbyte yang valid (status code ada)
+            if (data && typeof data.status !== 'undefined') {
+              result = data;
+              break; 
+            }
+          } catch (proxyErr) {
+            // Jika proxy gagal parsing JSON atau timeout, lanjut ke proxy berikutnya
+          }
         }
         
-        if (!response) {
+        if (!result) {
           throw new Error("Gagal terhubung ke server. Pastikan internet stabil.");
         }
-
-        const result = await response.json();
 
         if (result.status !== 200) {
           throw new Error(result.message || "Gagal melacak paket. Periksa kembali resi dan kurir Anda.");
@@ -322,6 +328,55 @@
       );
     };
 
+    const SupplierEtaBadge = ({ eta }) => {
+      if (!eta) {
+        return (
+          <span className="flex items-center justify-center px-1.5 py-1.5 rounded-lg text-[9px] sm:text-[10px] font-bold border bg-gray-100 dark:bg-[#1f1008] text-gray-500 dark:text-gray-400 border-gray-200 dark:border-[#381c0e] tracking-tight w-full shadow-sm transition-all duration-300 text-center leading-snug whitespace-normal break-words min-h-[28px]">
+            Belum ada Estimasi
+          </span>
+        );
+      }
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const etaDate = new Date(eta.replace(' ', 'T'));
+      etaDate.setHours(0, 0, 0, 0);
+      
+      if (isNaN(etaDate.getTime())) {
+         return (
+          <span className="flex items-center justify-center px-1.5 py-1.5 rounded-lg text-[9px] sm:text-[10px] font-bold border bg-gray-100 dark:bg-[#1f1008] text-gray-500 dark:text-gray-400 border-gray-200 dark:border-[#381c0e] tracking-tight w-full shadow-sm transition-all duration-300 text-center leading-snug whitespace-normal break-words min-h-[28px]">
+            {eta}
+          </span>
+        );
+      }
+
+      const diffTime = etaDate - today;
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+      let text = '';
+      let colorClass = '';
+
+      if (diffDays === 0) {
+        text = 'Hari ini';
+        colorClass = 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-800/50';
+      } else if (diffDays === 1) {
+        text = 'Besok';
+        colorClass = 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-300 border-blue-100 dark:border-blue-800/30';
+      } else if (diffDays > 1) {
+        text = `${diffDays} hari lagi`;
+        colorClass = 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 border-orange-200 dark:border-orange-800/50';
+      } else {
+        text = `Telat ${Math.abs(diffDays)} hari`;
+        colorClass = 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800/50';
+      }
+
+      return (
+        <span className={`flex items-center justify-center px-1.5 py-1.5 rounded-lg text-[9px] sm:text-[10px] font-bold border ${colorClass} tracking-tight w-full shadow-sm transition-all duration-300 text-center leading-snug whitespace-normal break-words min-h-[28px]`}>
+          {text}
+        </span>
+      );
+    };
+
     const getCourierStyle = (courierId) => {
       const labels = {
         'spx': 'SPX', 'jnt': 'J&T', 'jnt_cargo': 'J&TC', 'sicepat': 'SiCepat', 'anteraja': 'AnterAja',
@@ -351,7 +406,7 @@
       return etaStr; 
     };
 
-    const PackageCapsule = ({ pkg, onRemove, onEdit, onMarkDelivered, isExpanded, onToggleExpand }) => {
+    const PackageCapsule = ({ pkg, onRemove, onEdit, onMarkDelivered, isExpanded, onToggleExpand, currentView }) => {
       if (!pkg) return null;
       
       const isSupplier = pkg.type === 'supplier';
@@ -375,35 +430,70 @@
       const displayTitle = isSupplier ? pkg.supplierName : (pkg.itemName ? pkg.itemName : `Paket ${courierAvatar.label}`);
       const etaDisplay = formatEtaBadge(pkg.eta);
 
+      const [isFlying, setIsFlying] = useState(false);
+
+      // Pastikan efek terbang direset jika item dimount di Riwayat Tiba
+      useEffect(() => {
+        if (pkg.status === 'DELIVERED') {
+          setIsFlying(false);
+        }
+      }, [pkg.status]);
+
+      const handleMarkDelivered = (e) => {
+        e.stopPropagation();
+        setIsFlying(true); // Mulai animasi terbang
+        setTimeout(() => {
+          onMarkDelivered(pkg); // Trigger perubahan ke Riwayat Tiba setelah animasi selesai
+        }, 600);
+      };
+
       return (
-        <div className="group relative bg-white dark:bg-[#120a07] rounded-[24px] shadow-sm border border-gray-100 dark:border-[#2a1b15] overflow-hidden mb-2 transition-all duration-300 dark:hover:border-orange-500/50 dark:hover:shadow-[0_0_25px_rgba(249,115,22,0.15)]">
+        <div className={`group relative bg-white dark:bg-[#120a07] rounded-[24px] shadow-sm border border-gray-100 dark:border-[#2a1b15] overflow-hidden transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${isFlying ? 'opacity-0 -translate-y-24 -translate-x-16 scale-50 pointer-events-none z-50' : 'mb-2 dark:hover:border-orange-500/50 dark:hover:shadow-[0_0_25px_rgba(249,115,22,0.15)]'}`}>
           <div className="relative z-10">
             <div 
-              className="px-3 py-2.5 sm:px-4 sm:py-3 cursor-pointer flex flex-row items-stretch justify-between gap-3"
-              onClick={onToggleExpand}
+              className={`px-3 py-2.5 sm:px-4 sm:py-3 flex flex-row items-stretch justify-between gap-3 ${!isSupplier ? 'cursor-pointer' : ''}`}
+              onClick={!isSupplier ? onToggleExpand : undefined}
             >
-              <div className="flex flex-col items-stretch justify-center gap-1 shrink-0 w-[60px] sm:w-[68px]">
-                {/* AVATAR BOX (ETA / COURIER) */}
-                <div className={isSupplier ? `w-full h-[26px] sm:h-[28px] px-1 rounded-lg bg-gray-800 dark:bg-[#1a120e] border border-gray-700 dark:border-[#381c0e] text-white flex items-center justify-center font-black text-[10px] sm:text-[11px] shadow-sm tracking-tight leading-none` : courierAvatar.className}>
+              {/* KOLOM KIRI (LEBIH LEBAR JIKA SUPPLIER AGAR INLINE MUAT) */}
+              <div className={`flex flex-col items-stretch justify-center gap-1 shrink-0 ${isSupplier ? 'w-[80px] sm:w-[95px]' : 'w-[60px] sm:w-[68px]'}`}>
+                
+                {/* AVATAR BOX (ETA INLINE / COURIER) */}
+                <div className={isSupplier ? `w-full py-1.5 px-1.5 rounded-lg bg-gray-800 dark:bg-[#1a120e] border border-gray-700 dark:border-[#381c0e] text-white flex items-center justify-center font-black text-[10px] sm:text-[11px] shadow-sm tracking-tight leading-none gap-1.5` : courierAvatar.className}>
                   {isSupplier ? (
-                    pkg.eta ? <span className="truncate">{etaDisplay}</span> : (
-                      <span className="flex items-center justify-center space-x-[3px] h-full pt-[2px]">
-                        <span className="w-1 h-1 bg-white rounded-full animate-[bounce_1.4s_infinite_0ms]"></span>
-                        <span className="w-1 h-1 bg-white rounded-full animate-[bounce_1.4s_infinite_200ms]"></span>
-                        <span className="w-1 h-1 bg-white rounded-full animate-[bounce_1.4s_infinite_400ms]"></span>
-                      </span>
+                    pkg.eta ? (
+                      <>
+                        <Truck size={14} strokeWidth={2.5} className={`shrink-0 ${pkg.status !== 'DELIVERED' ? "animate-[bounce_1.5s_infinite]" : ""}`} />
+                        <span className="truncate pt-[1px]">{etaDisplay}</span>
+                      </>
+                    ) : (
+                      <>
+                        <Clock size={14} strokeWidth={2.5} className="shrink-0 opacity-70" />
+                        <span className="flex items-center justify-center space-x-[3px]">
+                          <span className="w-1 h-1 bg-white rounded-full animate-[bounce_1.4s_infinite_0ms]"></span>
+                          <span className="w-1 h-1 bg-white rounded-full animate-[bounce_1.4s_infinite_200ms]"></span>
+                          <span className="w-1 h-1 bg-white rounded-full animate-[bounce_1.4s_infinite_400ms]"></span>
+                        </span>
+                      </>
                     )
                   ) : (
                     <span className="truncate">{etaDisplay ? etaDisplay : courierAvatar.label}</span>
                   )}
                 </div>
-                <StatusBadge status={pkg.status} />
+                
+                {/* BADGE BAWAH */}
+                {isSupplier && pkg.status !== 'DELIVERED' ? (
+                  <SupplierEtaBadge eta={pkg.eta} />
+                ) : (
+                  <StatusBadge status={pkg.status} />
+                )}
               </div>
 
               <div className="flex-1 min-w-0 flex flex-col justify-center">
-                <span className="text-[8px] sm:text-[9px] text-gray-400 dark:text-gray-500 font-medium mb-0.5 tracking-wider uppercase group-hover:dark:text-orange-400/80 transition-colors">
-                  {formatDate(isSupplier ? pkg.addedAt : firstEventDate)}
-                </span>
+                {!isSupplier && (
+                  <span className="text-[8px] sm:text-[9px] text-gray-400 dark:text-gray-500 font-medium mb-0.5 tracking-wider uppercase group-hover:dark:text-orange-400/80 transition-colors">
+                    {formatDate(firstEventDate)}
+                  </span>
+                )}
                 <h3 className="font-bold text-gray-900 dark:text-white text-sm sm:text-base leading-tight break-words whitespace-normal mb-1 tracking-tight group-hover:dark:text-orange-50 transition-colors">
                   {displayTitle}
                 </h3>
@@ -415,27 +505,31 @@
               <div className="flex flex-col items-center justify-center border-l border-gray-100 dark:border-[#2a1b15] pl-2 sm:pl-3 shrink-0 gap-1 sm:gap-1.5 group-hover:dark:border-orange-500/30 transition-colors">
                 {isSupplier && pkg.status !== 'DELIVERED' && (
                   <button 
-                    onClick={(e) => { e.stopPropagation(); onMarkDelivered(pkg); }}
+                    onClick={handleMarkDelivered}
                     className="p-1.5 sm:p-2 rounded-xl text-gray-900 dark:text-gray-400 hover:text-white dark:hover:text-white hover:bg-green-500 dark:hover:bg-green-600 transition-colors"
                     title="Tandai Tiba"
                   >
                     <CheckCircle size={16} />
                   </button>
                 )}
-                <button 
-                  onClick={(e) => { e.stopPropagation(); onEdit(pkg); }}
-                  className="p-1.5 sm:p-2 rounded-xl text-gray-900 dark:text-gray-400 hover:text-white dark:hover:text-white hover:bg-blue-500 dark:hover:bg-blue-600 transition-colors"
-                  title={isSupplier ? "Edit Note Supplier" : "Edit Nama Barang"}
-                >
-                  <Edit2 size={16} />
-                </button>
-                <button 
-                  onClick={(e) => { e.stopPropagation(); onRemove(pkg); }}
-                  className="p-1.5 sm:p-2 rounded-xl text-gray-900 dark:text-gray-400 hover:text-white dark:hover:text-white hover:bg-red-500 dark:hover:bg-red-600 transition-colors"
-                  title="Hapus"
-                >
-                  <Trash2 size={16} />
-                </button>
+                {currentView !== 'riwayat' && (
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); onEdit(pkg); }}
+                    className="p-1.5 sm:p-2 rounded-xl text-gray-900 dark:text-gray-400 hover:text-white dark:hover:text-white hover:bg-blue-500 dark:hover:bg-blue-600 transition-colors"
+                    title={isSupplier ? "Edit Note Supplier" : "Edit Nama Barang"}
+                  >
+                    <Edit2 size={16} />
+                  </button>
+                )}
+                {!(isSupplier && currentView === 'aktif') && (
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); onRemove(pkg); }}
+                    className="p-1.5 sm:p-2 rounded-xl text-gray-900 dark:text-gray-400 hover:text-white dark:hover:text-white hover:bg-red-500 dark:hover:bg-red-600 transition-colors"
+                    title="Hapus"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                )}
               </div>
             </div>
 
@@ -475,17 +569,6 @@
                       </div>
                     </div>
                   ))}
-                </div>
-              </div>
-            )}
-            
-            {isExpanded && isSupplier && (
-              <div className="bg-gray-50 dark:bg-[#0a0503] p-4 sm:p-5 border-t border-gray-100 dark:border-[#2a1b15]">
-                <div className="bg-white dark:bg-[#120a07] p-4 rounded-xl border border-gray-200 dark:border-[#2a1b15]">
-                  <p className="text-xs text-gray-500 font-semibold uppercase tracking-wider mb-1">Status Supplier</p>
-                  <p className="text-sm font-medium text-gray-900 dark:text-gray-300">
-                    Catatan ini dibuat secara manual dan tidak dilacak secara otomatis. Tekan ikon <strong>centang hijau</strong> di samping tombol edit/hapus ketika barang telah tiba agar catatan pindah ke halaman Riwayat.
-                  </p>
                 </div>
               </div>
             )}
@@ -590,26 +673,40 @@
         return () => unsubscribe();
       }, [user]);
 
+      // Ref untuk packages agar useEffect AutoSync tidak terpicu ulang setiap kali ada perubahan state packages
+      const packagesRef = useRef(packages);
+      useEffect(() => {
+        packagesRef.current = packages;
+      }, [packages]);
+
       // ==========================================
       // AUTO-SYNC TERJADWAL (SANGAT HEMAT KUOTA)
+      // Hanya mengecek TEPAT di jam 09:00 dan 15:00 tanpa interval 5 menit
       // ==========================================
       useEffect(() => {
-        if (!user || !db || packages.length === 0) return;
+        if (!user || !db) return;
+
+        let isMounted = true;
+        let timeoutId;
 
         const checkAndRunAutoSync = async () => {
+          const pkgs = packagesRef.current;
           const now = new Date();
           const day = now.getDay();
           const hour = now.getHours();
 
-          // 0 = Minggu
-          if (day === 0) return;
-
+          // Buat string tanggal lokal (YYYY-MM-DD)
           const y = now.getFullYear();
           const m = String(now.getMonth() + 1).padStart(2, '0');
           const d = String(now.getDate()).padStart(2, '0');
           const dateString = `${y}-${m}-${d}`;
           
-          let syncState = JSON.parse(localStorage.getItem('yen_scheduled_sync') || '{}');
+          let syncState;
+          try {
+            syncState = JSON.parse(localStorage.getItem('yen_scheduled_sync') || '{}');
+          } catch (e) {
+            syncState = {};
+          }
           
           if (syncState.date !== dateString) {
             syncState = { date: dateString, morningDone: false, afternoonDone: false };
@@ -617,20 +714,25 @@
 
           let shouldSync = false;
 
-          // Sesi Pagi & Sore
-          if (hour >= 9 && hour < 15 && !syncState.morningDone) {
-            shouldSync = true;
-            syncState.morningDone = true;
-          } else if (hour >= 15 && !syncState.afternoonDone) {
-            shouldSync = true;
-            syncState.afternoonDone = true;
+          // Sesi Pagi & Sore (Lewati hari Minggu - Day 0)
+          if (day !== 0) {
+            if (hour >= 9 && hour < 15 && !syncState.morningDone) {
+              shouldSync = true;
+              syncState.morningDone = true;
+            } else if (hour >= 15 && !syncState.afternoonDone) {
+              shouldSync = true;
+              syncState.morningDone = true; // Tandai pagi selesai juga jika terlewat
+              syncState.afternoonDone = true;
+            }
           }
 
-          if (shouldSync) {
+          // Lakukan Sinkronisasi jika memenuhi syarat
+          if (shouldSync && pkgs.length > 0) {
             localStorage.setItem('yen_scheduled_sync', JSON.stringify(syncState));
-            setIsAutoSyncing(true);
+            if (isMounted) setIsAutoSyncing(true);
             
-            for (const pkg of packages) {
+            for (const pkg of pkgs) {
+              if (!isMounted) break;
               // SKIP YANG SUDAH TIBA DAN SKIP TIPE SUPPLIER (Karena Manual)
               if (pkg.status === 'DELIVERED' || pkg.type === 'supplier') continue;
               
@@ -645,14 +747,58 @@
               await new Promise(resolve => setTimeout(resolve, 1500));
             }
             
-            setIsAutoSyncing(false);
+            if (isMounted) setIsAutoSyncing(false);
           }
+
+          // ===============================================
+          // HITUNG MUNDUR KE JADWAL BERIKUTNYA (9 AM / 3 PM)
+          // ===============================================
+          if (!isMounted) return;
+
+          const nextTarget = new Date(now);
+          nextTarget.setMinutes(0, 0, 0); // Reset ke menit 00:00:00
+
+          if (day === 0) {
+            // Jika hari ini Minggu, jadwal berikutnya Senin jam 9 pagi
+            nextTarget.setDate(now.getDate() + 1);
+            nextTarget.setHours(9);
+          } else {
+            if (hour < 9) {
+              // Menuju jam 9 pagi hari ini
+              nextTarget.setHours(9);
+            } else if (hour >= 9 && hour < 15) {
+              // Menuju jam 3 sore hari ini
+              nextTarget.setHours(15);
+            } else {
+              // Menuju jam 9 pagi besok harinya
+              nextTarget.setDate(now.getDate() + 1);
+              nextTarget.setHours(9);
+              // Jika besok adalah Minggu, lompat ke Senin
+              if (nextTarget.getDay() === 0) {
+                nextTarget.setDate(nextTarget.getDate() + 1);
+              }
+            }
+          }
+
+          // Kalkulasi jeda milidetik dari sekarang sampai waktu target tiba
+          const delay = nextTarget.getTime() - new Date().getTime();
+          
+          timeoutId = setTimeout(() => {
+            checkAndRunAutoSync();
+          }, Math.max(delay, 1000));
         };
 
-        checkAndRunAutoSync();
-        const intervalId = setInterval(checkAndRunAutoSync, 5 * 60 * 1000);
-        return () => clearInterval(intervalId);
-      }, [packages, user, db]);
+        // Beri jeda 3 detik di awal agar data dari Firestore sempat masuk ke packagesRef
+        const initTimeout = setTimeout(() => {
+          checkAndRunAutoSync();
+        }, 3000);
+        
+        return () => {
+          isMounted = false;
+          clearTimeout(initTimeout);
+          clearTimeout(timeoutId); // Bersihkan timeout, BUKAN interval
+        };
+      }, [user, db]); // Dependency `packages` dihilangkan agar tidak looping
 
       // TAMBAH ONLINE RESI
       const performTracking = async (awbToTrack, courierToTrack, itemNameToTrack, packageType = 'online') => {
@@ -779,10 +925,15 @@
       // HISTORY ARSIP LOGIC
       const checkIsArchived = (pkg) => {
         if (pkg.status !== 'DELIVERED') return false;
+        
+        // Khusus Supplier: Langsung dipindahkan ke riwayat tanpa menunggu
+        if (pkg.type === 'supplier') return true;
+
+        // Khusus Online: Tunggu 1 hari agar masuk riwayat
         const dateStr = (pkg.timeline && pkg.timeline.length > 0) ? pkg.timeline[0].timestamp : pkg.lastUpdated;
         const d = new Date((dateStr || '').replace(' ', 'T'));
         if (isNaN(d.getTime())) return false;
-        return (new Date().getTime() - d.getTime()) >= (24 * 60 * 60 * 1000); // Lebih dari 1 hari
+        return (new Date().getTime() - d.getTime()) >= (24 * 60 * 60 * 1000); 
       };
 
       // PEMISAHAN DATA ONLINE & SUPPLIER
@@ -822,7 +973,7 @@
       const displaySupplierPackages = filterAndSort(sourceSupplierPackages);
 
       return (
-        <div className="min-h-screen font-sans relative pb-20 transition-colors duration-700 overflow-x-hidden">
+        <div className="min-h-screen font-sans relative pb-20 transition-colors duration-700">
           
           <PwaInstallPrompt />
 
@@ -834,16 +985,24 @@
 
           {/* Normal Header: Title */}
           <div className="pt-6 sm:pt-8 px-3 sm:px-8">
-            <div className="max-w-2xl mx-auto text-center mb-5 sm:mb-7">
+            <div className="max-w-2xl mx-auto text-center mb-2 sm:mb-3">
               <h1 
                 className="text-5xl sm:text-6xl mb-1 tracking-wide text-gray-900 dark:text-white" 
                 style={{ fontFamily: "'Bebas Neue', sans-serif" }}
               >
                 YEN BANGUNAN
               </h1>
+            </div>
+          </div>
+
+          {/* Sticky Header: Toggle & Toolbar */}
+          <div className={`sticky top-0 z-40 w-full transition-all duration-300 ${
+            isScrolled ? 'backdrop-blur-md bg-white/90 dark:bg-[#080302]/90 border-b border-gray-200 dark:border-[#2a1b15] shadow-sm pt-3 pb-3' : 'bg-transparent pt-1 pb-3'
+          }`}>
+            <div className="max-w-2xl mx-auto px-3 sm:px-8 relative z-10">
               
               {/* TOMBOL PEMILIH HALAMAN (ONLINE / SUPPLIER) */}
-              <div className="flex justify-center mt-3 sm:mt-4">
+              <div className={`flex justify-center transition-all duration-300 ${isScrolled ? 'mb-2' : 'mb-5'}`}>
                 <div className="relative flex items-center p-1.5 bg-gray-200/80 dark:bg-[#120a07] rounded-full border border-gray-300/50 dark:border-[#2a1b15]">
                   <div 
                     className="absolute top-1.5 bottom-1.5 w-[calc(50%-6px)] bg-white dark:bg-[#2a1b15] rounded-full shadow-sm transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]"
@@ -863,14 +1022,8 @@
                   </button>
                 </div>
               </div>
-            </div>
-          </div>
 
-          {/* Sticky Toolbar: Pantauan Aktif & Tombol Aksi */}
-          <div className={`sticky top-0 z-40 px-3 sm:px-8 pt-2 pb-3 transition-colors duration-300 ${
-            isScrolled ? 'backdrop-blur-md bg-white/90 dark:bg-[#080302]/80 border-b border-gray-200 dark:border-white/10' : 'bg-transparent'
-          }`}>
-            <div className="max-w-2xl mx-auto relative z-10">
+              {/* Toolbar: Pantauan Aktif & Tombol Aksi */}
               <div className="flex items-center justify-between px-1 h-11 sm:h-12 gap-2">
                 
                 {/* Bagian Kiri: Search Bar ATAU Judul Dinamis */}
@@ -1047,7 +1200,7 @@
             </div>
 
             {/* Wrapper Daftar Resi dengan Slider Animasi */}
-            <div className="w-full pt-2">
+            <div className="w-full pt-2 overflow-x-hidden">
               <div 
                 className="flex transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] items-start w-[200%]"
                 style={{ transform: activeTab === 'online' ? 'translateX(0%)' : 'translateX(-50%)' }}
@@ -1090,6 +1243,7 @@
                               onMarkDelivered={markSupplierDelivered}
                               isExpanded={expandedAwb === pkg.awb}
                               onToggleExpand={() => setExpandedAwb(expandedAwb === pkg.awb ? null : pkg.awb)}
+                              currentView={currentView}
                             />
                           ))}
                         </div>
@@ -1135,6 +1289,7 @@
                               onMarkDelivered={markSupplierDelivered}
                               isExpanded={expandedAwb === pkg.awb}
                               onToggleExpand={() => setExpandedAwb(expandedAwb === pkg.awb ? null : pkg.awb)}
+                              currentView={currentView}
                             />
                           ))}
                         </div>
