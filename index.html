@@ -53,7 +53,11 @@
             animation: {
               'wave': 'wave 20s ease-in-out infinite alternate',
               'wave-slow': 'wave 25s ease-in-out infinite alternate-reverse',
-              'slide-down': 'slide-down 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards'
+              'slide-down': 'slide-down 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+              'truck-drive': 'truck-drive 0.2s linear infinite',
+              'wind-1': 'wind-flow 0.4s linear infinite',
+              'wind-2': 'wind-flow 0.4s linear infinite 0.1s',
+              'wind-3': 'wind-flow 0.4s linear infinite 0.2s',
             },
             keyframes: {
               wave: {
@@ -65,6 +69,17 @@
               'slide-down': {
                 '0%': { transform: 'translateY(-150%)', opacity: '0' },
                 '100%': { transform: 'translateY(0)', opacity: '1' }
+              },
+              'truck-drive': {
+                '0%, 100%': { transform: 'translateX(0) translateY(0)' },
+                '25%': { transform: 'translateX(0.5px) translateY(-0.5px)' },
+                '50%': { transform: 'translateX(-0.5px) translateY(0)' },
+                '75%': { transform: 'translateX(0.5px) translateY(0.5px)' },
+              },
+              'wind-flow': {
+                '0%': { transform: 'translateX(0)', opacity: '0' },
+                '30%': { opacity: '0.8' },
+                '100%': { transform: 'translateX(-12px)', opacity: '0' },
               }
             }
           }
@@ -458,13 +473,21 @@
               <div className={`flex flex-col items-stretch justify-center gap-1 shrink-0 ${isSupplier ? 'w-[80px] sm:w-[95px]' : 'w-[60px] sm:w-[68px]'}`}>
                 
                 {/* AVATAR BOX (ETA INLINE / COURIER) */}
-                <div className={isSupplier ? `w-full py-1.5 px-1.5 rounded-lg bg-gray-800 dark:bg-[#1a120e] border border-gray-700 dark:border-[#381c0e] text-white flex items-center justify-center font-black text-[10px] sm:text-[11px] shadow-sm tracking-tight leading-none gap-1.5` : courierAvatar.className}>
+                <div className={isSupplier ? `w-full py-1.5 px-1.5 rounded-lg bg-gray-800 dark:bg-[#1a120e] border border-gray-700 dark:border-[#381c0e] text-white flex items-center justify-center font-black text-[10px] sm:text-[11px] shadow-sm tracking-tight leading-none gap-1.5 overflow-hidden` : courierAvatar.className}>
                   {isSupplier ? (
                     pkg.eta ? (
-                      <>
-                        <Truck size={14} strokeWidth={2.5} className={`shrink-0 ${pkg.status !== 'DELIVERED' ? "animate-[bounce_1.5s_infinite]" : ""}`} />
+                      <div className="relative flex items-center gap-1.5">
+                        {/* Speed Wind Lines Behind Truck */}
+                        {pkg.status !== 'DELIVERED' && (
+                          <div className="absolute right-full mr-0.5 flex flex-col gap-[2px]">
+                            <div className="w-1.5 h-[1.5px] bg-white/40 rounded-full animate-wind-1"></div>
+                            <div className="w-2.5 h-[1.5px] bg-white/60 rounded-full animate-wind-2"></div>
+                            <div className="w-2 h-[1.5px] bg-white/40 rounded-full animate-wind-3"></div>
+                          </div>
+                        )}
+                        <Truck size={14} strokeWidth={2.5} className={`shrink-0 ${pkg.status !== 'DELIVERED' ? "animate-truck-drive" : ""}`} />
                         <span className="truncate pt-[1px]">{etaDisplay}</span>
-                      </>
+                      </div>
                     ) : (
                       <>
                         <Clock size={14} strokeWidth={2.5} className="shrink-0 opacity-70" />
@@ -998,34 +1021,12 @@
             </div>
           </div>
 
-          {/* Header: Toggle & Toolbar */}
+          {/* Header: Toolbar Container */}
           <div className="w-full bg-transparent pt-1 pb-3 relative z-40">
-            <div className="max-w-2xl mx-auto px-3 sm:px-8 relative z-10">
+            <div className="max-w-2xl mx-auto px-2 sm:px-8 relative z-10">
               
-              {/* TOMBOL PEMILIH HALAMAN (ONLINE / SUPPLIER) */}
-              <div className="flex justify-center transition-all duration-300 mb-5">
-                <div className="relative flex items-center p-1.5 bg-gray-200/80 dark:bg-[#120a07] rounded-full border border-gray-300/50 dark:border-[#2a1b15]">
-                  <div 
-                    className="absolute top-1.5 bottom-1.5 w-[calc(50%-6px)] bg-white dark:bg-[#2a1b15] rounded-full shadow-sm transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]"
-                    style={{ left: activeTab === 'online' ? '6px' : 'calc(50%)' }}
-                  ></div>
-                  <button 
-                    onClick={() => { setActiveTab('online'); setIsSearchActive(false); setSearchQuery(''); setCurrentView('aktif'); }} 
-                    className={`relative z-10 w-28 sm:w-32 py-1.5 sm:py-2 text-[10px] sm:text-xs font-bold tracking-widest uppercase rounded-full transition-colors duration-300 ${activeTab === 'online' ? 'text-black dark:text-white' : 'text-gray-500 hover:text-gray-800 dark:hover:text-gray-300'}`}
-                  >
-                    Online
-                  </button>
-                  <button 
-                    onClick={() => { setActiveTab('supplier'); setIsSearchActive(false); setSearchQuery(''); setCurrentView('aktif'); }} 
-                    className={`relative z-10 w-28 sm:w-32 py-1.5 sm:py-2 text-[10px] sm:text-xs font-bold tracking-widest uppercase rounded-full transition-colors duration-300 ${activeTab === 'supplier' ? 'text-black dark:text-white' : 'text-gray-500 hover:text-gray-800 dark:hover:text-gray-300'}`}
-                  >
-                    Supplier
-                  </button>
-                </div>
-              </div>
-
-              {/* Toolbar: Pantauan Aktif & Tombol Aksi */}
-              <div className="flex items-center justify-between px-1 h-11 sm:h-12 gap-2">
+              {/* Toolbar: Dynamic Title, Toggle, & Action Buttons */}
+              <div className="flex items-center justify-between px-1 h-11 sm:h-12 gap-1 sm:gap-2">
                 
                 {/* Bagian Kiri: Search Bar ATAU Judul Dinamis */}
                 {isSearchActive ? (
@@ -1039,7 +1040,7 @@
                       placeholder={activeTab === 'online' ? "Cari resi, nama, kurir..." : "Cari supplier, notes..."}
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full pl-10 pr-10 py-0 h-full bg-white dark:bg-[#130d0a] border border-gray-200 dark:border-[#2a1b15] rounded-2xl focus:ring-2 focus:ring-black dark:focus:ring-orange-500 focus:border-black dark:focus:border-transparent outline-none text-gray-900 dark:text-white font-medium text-sm shadow-sm placeholder-gray-400 dark:placeholder-gray-600"
+                      className="w-full pl-10 pr-10 py-0 h-full bg-white dark:bg-[#130d0a] border border-gray-200 dark:border-[#2a1b15] rounded-[14px] sm:rounded-2xl focus:ring-2 focus:ring-black dark:focus:ring-orange-500 focus:border-black dark:focus:border-transparent outline-none text-gray-900 dark:text-white font-medium text-sm shadow-sm placeholder-gray-400 dark:placeholder-gray-600"
                     />
                     <button
                       onClick={() => { setIsSearchActive(false); setSearchQuery(''); }}
@@ -1054,38 +1055,31 @@
                     {/* Overlay Transparan untuk Menutup Dropdown Saat Diklik di Luar */}
                     {isDropdownOpen && <div className="fixed inset-0 z-40" onClick={() => setIsDropdownOpen(false)}></div>}
 
-                    {/* ONLINE TITLE GROUP */}
-                    <div className={`absolute left-0 w-full h-full flex items-center transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${activeTab === 'online' ? 'opacity-100 translate-x-0 pointer-events-auto' : 'opacity-0 -translate-x-8 pointer-events-none'}`}>
-                      <button 
-                        onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                        className="absolute left-0 top-1/2 -translate-y-1/2 flex items-center gap-1.5 focus:outline-none group origin-left"
-                      >
-                        <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white tracking-tight flex items-center gap-1 sm:gap-2 whitespace-nowrap">
-                          {currentView === 'aktif' ? 'Pantauan Aktif' : 'Riwayat Tiba'}
-                          <span className="bg-gray-200 dark:bg-[#130d0a] text-gray-600 dark:text-white px-2 sm:px-2.5 py-0.5 rounded-full text-xs sm:text-sm font-semibold flex items-center gap-1.5 dark:border dark:border-[#2a1b15]">
-                            {sourceOnlinePackages.length}
-                            {isAutoSyncing && currentView === 'aktif' && <RefreshCw size={12} className="animate-spin text-gray-400 dark:text-gray-500" />}
-                          </span>
-                          <ChevronDown size={18} className={`text-gray-400 dark:text-gray-500 transition-transform duration-300 ${isDropdownOpen ? 'rotate-180' : ''}`} />
-                        </h2>
-                      </button>
-                    </div>
-
-                    {/* SUPPLIER TITLE GROUP */}
-                    <div className={`absolute left-0 w-full h-full flex items-center transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${activeTab === 'supplier' ? 'opacity-100 translate-x-0 pointer-events-auto' : 'opacity-0 translate-x-8 pointer-events-none'}`}>
-                      <button 
-                        onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                        className="absolute left-0 top-1/2 -translate-y-1/2 flex items-center gap-1.5 focus:outline-none group origin-left"
-                      >
-                        <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white tracking-tight flex items-center gap-1 sm:gap-2 whitespace-nowrap">
-                          {currentView === 'aktif' ? 'Pesanan Supplier' : 'Riwayat Tiba'}
-                          <span className="bg-gray-200 dark:bg-[#130d0a] text-gray-600 dark:text-white px-2 sm:px-2.5 py-0.5 rounded-full text-xs sm:text-sm font-semibold flex items-center gap-1.5 dark:border dark:border-[#2a1b15]">
-                            {sourceSupplierPackages.length}
-                          </span>
-                          <ChevronDown size={18} className={`text-gray-400 dark:text-gray-500 transition-transform duration-300 ${isDropdownOpen ? 'rotate-180' : ''}`} />
-                        </h2>
-                      </button>
-                    </div>
+                    {/* DYNAMIC TITLE GROUP (Replaces absolute overlapping layers to fix click bugs) */}
+                    <button 
+                      onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                      className="relative z-50 flex items-center gap-1 sm:gap-1.5 focus:outline-none group max-w-full origin-left"
+                    >
+                      <h2 className="text-[15px] sm:text-2xl font-bold text-gray-900 dark:text-white tracking-tight flex items-center gap-1 sm:gap-2 whitespace-nowrap truncate">
+                        <span className="truncate">
+                          {currentView === 'aktif' ? (
+                            activeTab === 'online' ? (
+                              <><span className="sm:hidden">Pantauan</span><span className="hidden sm:inline">Pantauan Aktif</span></>
+                            ) : (
+                              <><span className="sm:hidden">Pesanan</span><span className="hidden sm:inline">Pesanan Supplier</span></>
+                            )
+                          ) : (
+                            <><span className="sm:hidden">Riwayat</span><span className="hidden sm:inline">Riwayat Tiba</span></>
+                          )}
+                        </span>
+                        
+                        <span className="bg-gray-200 dark:bg-[#130d0a] text-gray-600 dark:text-white px-1.5 sm:px-2.5 py-0.5 rounded-full text-[10px] sm:text-sm font-semibold flex items-center gap-1 sm:gap-1.5 shrink-0 dark:border dark:border-[#2a1b15]">
+                          {activeTab === 'online' ? sourceOnlinePackages.length : sourceSupplierPackages.length}
+                          {activeTab === 'online' && isAutoSyncing && currentView === 'aktif' && <RefreshCw size={12} className="animate-spin text-gray-400 dark:text-gray-500" />}
+                        </span>
+                        <ChevronDown size={16} className={`shrink-0 text-gray-400 dark:text-gray-500 transition-transform duration-300 ${isDropdownOpen ? 'rotate-180' : ''}`} />
+                      </h2>
+                    </button>
                     
                     {/* GLOBAL MENU DROPDOWN (ANIMASI SLIDE-DOWN HALUS) */}
                     <div 
@@ -1114,26 +1108,50 @@
                   </div>
                 )}
 
+                {/* Bagian Tengah: Toggle Online/Supplier (Ditampilkan Jika Tidak Sedang Mencari) */}
+                {!isSearchActive && (
+                  <div className="flex justify-center shrink-0 z-40 mx-0.5 sm:mx-1">
+                    <div className="relative flex items-center h-10 sm:h-12 bg-gray-200/80 dark:bg-[#120a07] rounded-[14px] sm:rounded-2xl border border-gray-200 dark:border-[#2a1b15] overflow-hidden p-0 w-24 sm:w-[110px] shadow-sm">
+                      <div
+                        className="absolute top-0 bottom-0 bg-white dark:bg-[#2a1b15] shadow-sm transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]"
+                        style={{ left: activeTab === 'online' ? '0%' : '50%', width: '50%', borderRadius: 'inherit' }}
+                      ></div>
+                      <button
+                        onClick={() => { setActiveTab('online'); setIsSearchActive(false); setSearchQuery(''); setCurrentView('aktif'); }}
+                        className={`relative z-10 w-1/2 h-full flex items-center justify-center text-[11px] sm:text-xs font-bold tracking-widest uppercase transition-colors duration-300 ${activeTab === 'online' ? 'text-black dark:text-white' : 'text-gray-500 hover:text-gray-800 dark:hover:text-gray-300'}`}
+                      >
+                        OL
+                      </button>
+                      <button
+                        onClick={() => { setActiveTab('supplier'); setIsSearchActive(false); setSearchQuery(''); setCurrentView('aktif'); }}
+                        className={`relative z-10 w-1/2 h-full flex items-center justify-center text-[11px] sm:text-xs font-bold tracking-widest uppercase transition-colors duration-300 ${activeTab === 'supplier' ? 'text-black dark:text-white' : 'text-gray-500 hover:text-gray-800 dark:hover:text-gray-300'}`}
+                      >
+                        SUP
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 {/* Bagian Kanan: Ikon */}
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex items-center gap-1 sm:gap-2 shrink-0">
                   
                   {!isSearchActive && (activeTab === 'online' ? allOnlinePackages.length : allSupplierPackages.length) > 0 && (
                     <button 
                       onClick={() => setIsSearchActive(true)}
-                      className="h-11 w-11 sm:h-12 sm:w-12 bg-white dark:bg-[#130d0a] border border-gray-200 dark:border-[#2a1b15] rounded-2xl flex items-center justify-center text-gray-700 dark:text-white shadow-sm hover:bg-gray-50 dark:hover:bg-[#1c130d] transition-colors"
+                      className="h-10 w-10 sm:h-12 sm:w-12 bg-white dark:bg-[#130d0a] border border-gray-200 dark:border-[#2a1b15] rounded-[14px] sm:rounded-2xl flex items-center justify-center text-gray-700 dark:text-white shadow-sm hover:bg-gray-50 dark:hover:bg-[#1c130d] transition-colors"
                       title="Cari"
                     >
-                      <Search size={20} />
+                      <Search size={20} className="sm:w-5 sm:h-5" />
                     </button>
                   )}
 
                   {(activeTab === 'online' ? allOnlinePackages.length : allSupplierPackages.length) > 0 && (
                     <div className="relative">
                       <button 
-                        className="h-11 w-11 sm:h-12 sm:w-12 bg-white dark:bg-[#130d0a] border border-gray-200 dark:border-[#2a1b15] rounded-2xl flex items-center justify-center text-gray-700 dark:text-white shadow-sm hover:bg-gray-50 dark:hover:bg-[#1c130d] transition-colors"
+                        className="h-10 w-10 sm:h-12 sm:w-12 bg-white dark:bg-[#130d0a] border border-gray-200 dark:border-[#2a1b15] rounded-[14px] sm:rounded-2xl flex items-center justify-center text-gray-700 dark:text-white shadow-sm hover:bg-gray-50 dark:hover:bg-[#1c130d] transition-colors"
                         title="Filter Data"
                       >
-                        <Filter size={20} />
+                        <Filter size={20} className="sm:w-5 sm:h-5" />
                         {sortBy !== 'oldest' && <div className="absolute top-2.5 right-2.5 h-2 w-2 rounded-full bg-red-500 border border-white dark:border-transparent"></div>}
                       </button>
                       <select
@@ -1150,17 +1168,17 @@
 
                   <button 
                     onClick={() => setIsModalOpen(true)}
-                    className="bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-gray-200 text-white dark:text-black h-11 w-11 sm:h-12 sm:w-12 rounded-2xl flex items-center justify-center transition-transform active:scale-95 shadow-md shrink-0"
+                    className="bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-gray-200 text-white dark:text-black h-10 w-10 sm:h-12 sm:w-12 rounded-[14px] sm:rounded-2xl flex items-center justify-center transition-transform active:scale-95 shadow-md shrink-0"
                     title={activeTab === 'online' ? "Tambah Resi" : "Tambah Note Supplier"}
                   >
-                    <Plus size={24} strokeWidth={3} />
+                    <Plus size={24} className="sm:w-6 sm:h-6" strokeWidth={3} />
                   </button>
                 </div>
               </div>
             </div>
 
             {/* Wrapper Daftar Resi dengan Slider Animasi */}
-            <div className="w-full pt-2 overflow-x-hidden">
+            <div className="w-full pt-4 overflow-x-hidden">
               <div 
                 className="flex transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] items-start w-[200%]"
                 style={{ transform: activeTab === 'online' ? 'translateX(0%)' : 'translateX(-50%)' }}
@@ -1260,49 +1278,49 @@
 
               </div>
             </div>
+          </div>
+          
+          {/* FOOTER AREA */}
+          <div className="mt-16 mb-8 flex flex-col items-center justify-center gap-10">
             
-            {/* FOOTER AREA */}
-            <div className="mt-16 mb-8 flex flex-col items-center justify-center gap-10">
+            <div className="w-full relative p-1.5 bg-gray-100 dark:bg-[#120a07] rounded-full flex items-center border border-gray-200 dark:border-[#26150c]">
+              <div 
+                className="absolute top-1.5 bottom-1.5 w-[calc(50%-6px)] bg-white dark:bg-[#1f1008] border border-gray-200 dark:border-[#381c0e] rounded-full shadow-sm dark:shadow-[0_0_10px_rgba(0,0,0,0.5)] transition-all duration-300 ease-out"
+                style={{ left: theme === 'dark' ? 'calc(50% + 3px)' : '6px' }}
+              ></div>
               
-              <div className="w-full relative p-1.5 bg-gray-100 dark:bg-[#120a07] rounded-full flex items-center border border-gray-200 dark:border-[#26150c]">
-                <div 
-                  className="absolute top-1.5 bottom-1.5 w-[calc(50%-6px)] bg-white dark:bg-[#1f1008] border border-gray-200 dark:border-[#381c0e] rounded-full shadow-sm dark:shadow-[0_0_10px_rgba(0,0,0,0.5)] transition-all duration-300 ease-out"
-                  style={{ left: theme === 'dark' ? 'calc(50% + 3px)' : '6px' }}
-                ></div>
-                
-                <button 
-                  onClick={() => setTheme('light')}
-                  className={`flex-1 flex items-center justify-center gap-2 py-3.5 z-10 text-[11px] uppercase tracking-wider font-bold transition-colors duration-300 ${theme === 'light' ? 'text-black' : 'text-gray-500 hover:text-gray-400'}`}
-                >
-                  <Sun size={14} strokeWidth={2.5} /> Mode Terang
-                </button>
-                
-                <button 
-                  onClick={() => setTheme('dark')}
-                  className={`flex-1 flex items-center justify-center gap-2 py-3.5 z-10 text-[11px] uppercase tracking-wider font-bold transition-colors duration-300 ${theme === 'dark' ? 'text-white' : 'text-gray-500 hover:text-gray-400'}`}
-                >
-                  <Moon size={14} strokeWidth={2.5} /> Mode Gelap
-                </button>
-              </div>
-
-              <div className="flex flex-col items-center text-center gap-4 px-4">
-                <p className="text-xs font-bold text-gray-500 dark:text-gray-500">
-                  Find this tracking tool valuable for your business?
-                </p>
-                <button 
-                  onClick={() => setIsSalesModalOpen(true)} 
-                  className="group relative inline-flex items-center justify-center gap-2 bg-black dark:bg-gradient-to-r dark:from-orange-500 dark:to-red-500 text-white font-black text-sm px-8 py-3 rounded-full shadow-xl dark:shadow-[0_0_20px_rgba(234,88,12,0.3)] hover:scale-105 active:scale-95 transition-all duration-300"
-                >
-                  <Zap size={16} className="text-yellow-400 dark:text-white group-hover:animate-pulse" />
-                  Acquire This System
-                </button>
-              </div>
-
-              <p className="text-[10px] text-gray-400 dark:text-gray-600 font-bold tracking-widest uppercase">
-                Dibuat oleh Fajar Jayadi
-              </p>
-
+              <button 
+                onClick={() => setTheme('light')}
+                className={`flex-1 flex items-center justify-center gap-2 py-3.5 z-10 text-[11px] uppercase tracking-wider font-bold transition-colors duration-300 ${theme === 'light' ? 'text-black' : 'text-gray-500 hover:text-gray-400'}`}
+              >
+                <Sun size={14} strokeWidth={2.5} /> Mode Terang
+              </button>
+              
+              <button 
+                onClick={() => setTheme('dark')}
+                className={`flex-1 flex items-center justify-center gap-2 py-3.5 z-10 text-[11px] uppercase tracking-wider font-bold transition-colors duration-300 ${theme === 'dark' ? 'text-white' : 'text-gray-500 hover:text-gray-400'}`}
+              >
+                <Moon size={14} strokeWidth={2.5} /> Mode Gelap
+              </button>
             </div>
+
+            <div className="flex flex-col items-center text-center gap-4 px-4">
+              <p className="text-xs font-bold text-gray-500 dark:text-gray-500">
+                Find this tracking tool valuable for your business?
+              </p>
+              <button 
+                onClick={() => setIsSalesModalOpen(true)} 
+                className="group relative inline-flex items-center justify-center gap-2 bg-black dark:bg-gradient-to-r dark:from-orange-500 dark:to-red-500 text-white font-black text-sm px-8 py-3 rounded-full shadow-xl dark:shadow-[0_0_20px_rgba(234,88,12,0.3)] hover:scale-105 active:scale-95 transition-all duration-300"
+              >
+                <Zap size={16} className="text-yellow-400 dark:text-white group-hover:animate-pulse" />
+                Acquire This System
+              </button>
+            </div>
+
+            <p className="text-[10px] text-gray-400 dark:text-gray-600 font-bold tracking-widest uppercase">
+              Dibuat oleh Fajar Jayadi
+            </p>
+
           </div>
 
           {/* MAIN ADD MODAL (ONLINE & SUPPLIER) */}
