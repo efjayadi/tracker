@@ -123,7 +123,7 @@
     import { 
       Package, Truck, CheckCircle, Clock, RefreshCw, Trash2, 
       Search, AlertCircle, MapPin, X, Plus, Navigation, Filter, Moon, Sun, Zap, ArrowRight,
-      Download, ChevronDown, Edit2, Calendar, User, RotateCcw
+      Download, ChevronDown, Edit2, Calendar, User, RotateCcw, FileText
     } from 'https://esm.sh/lucide-react@0.263.1';
     
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
@@ -476,8 +476,8 @@
         <div className={`group relative bg-white dark:bg-[#120a07] rounded-[24px] shadow-sm border border-gray-100 dark:border-[#2a1b15] overflow-hidden transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${isFlying ? 'opacity-0 -translate-y-24 -translate-x-16 scale-50 pointer-events-none z-50' : 'mb-2 dark:hover:border-orange-500/50 dark:hover:shadow-[0_0_25px_rgba(249,115,22,0.15)]'}`}>
           <div className="relative z-10">
             <div 
-              className={`px-3 py-2.5 sm:px-4 sm:py-3 flex flex-row items-stretch justify-between gap-3 ${!isSupplier ? 'cursor-pointer' : ''}`}
-              onClick={!isSupplier ? onToggleExpand : undefined}
+              className={`px-3 py-2.5 sm:px-4 sm:py-3 flex flex-row items-stretch justify-between gap-3 cursor-pointer`}
+              onClick={onToggleExpand}
             >
               {/* KOLOM KIRI (LEBIH LEBAR JIKA SUPPLIER AGAR INLINE MUAT) */}
               <div className={`flex flex-col items-stretch justify-center gap-1 shrink-0 ${isSupplier ? 'w-[80px] sm:w-[95px]' : 'w-[60px] sm:w-[68px]'}`}>
@@ -578,43 +578,66 @@
               </div>
             </div>
 
-            {isExpanded && !isSupplier && (
+            {isExpanded && (
               <div className="bg-gray-50 dark:bg-[#0a0503] p-4 sm:p-5 border-t border-gray-100 dark:border-[#2a1b15]">
                 <div className="mb-5 bg-white dark:bg-[#120a07] p-3 rounded-xl border border-gray-200 dark:border-[#2a1b15] flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
                   <div>
-                    <p className="text-xs text-gray-500 dark:text-gray-500 font-semibold uppercase tracking-wider mb-0.5">Nomor Resi</p>
-                    <p className="font-mono text-sm font-semibold text-gray-900 dark:text-white">{pkg.awb}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-500 font-semibold uppercase tracking-wider mb-0.5">
+                      {isSupplier ? 'Nomor SJ' : 'Nomor Resi'}
+                    </p>
+                    <p className="font-mono text-sm font-semibold text-gray-900 dark:text-white">
+                      {isSupplier ? (pkg.sj || '-') : pkg.awb}
+                    </p>
                   </div>
                   <div className="sm:text-right mt-2 sm:mt-0">
-                    <p className="text-xs text-gray-500 dark:text-gray-500 font-semibold uppercase tracking-wider mb-0.5">Kurir</p>
-                    <p className="text-sm font-semibold text-gray-900 dark:text-white">{courierNameFull}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-500 font-semibold uppercase tracking-wider mb-0.5">
+                      {isSupplier ? 'Kategori' : 'Kurir'}
+                    </p>
+                    <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                      {isSupplier ? 'Note Supplier' : courierNameFull}
+                    </p>
                   </div>
                 </div>
 
-                <h4 className="text-xs font-bold text-gray-400 dark:text-gray-600 mb-4 tracking-wider uppercase">Riwayat Perjalanan</h4>
-                <div className="relative border-l-2 border-gray-200 dark:border-[#2a1b15] ml-3 space-y-6 pb-2">
-                  {(pkg.timeline || []).map((event, index) => (
-                    <div key={event.id || index} className="relative pl-6">
-                      <div className={`absolute -left-[9px] top-1 h-4 w-4 rounded-full border-2 ${index === 0 ? 'bg-black dark:bg-orange-500 ring-4 ring-gray-200 dark:ring-[#2a1b15] border-white dark:border-[#120a07] dark:shadow-[0_0_10px_rgba(249,115,22,0.5)]' : 'bg-gray-300 dark:bg-[#2a1b15] border-gray-50 dark:border-[#0a0503]'}`}></div>
-                      
-                      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-1.5">
-                        <div className="pr-4">
-                          <p className={`text-sm leading-relaxed ${index === 0 ? 'font-semibold text-gray-900 dark:text-orange-50' : 'text-gray-600 dark:text-gray-400 font-medium'}`}>
-                            {event.description}
-                          </p>
-                          {event.location && (
-                            <p className="text-xs font-semibold text-black dark:text-gray-500 mt-1 flex items-center gap-1">
-                              <MapPin size={12} /> {event.location}
+                <h4 className="text-xs font-bold text-gray-400 dark:text-gray-600 mb-4 tracking-wider uppercase">
+                  {isSupplier ? 'Detail Catatan' : 'Riwayat Perjalanan'}
+                </h4>
+                
+                {isSupplier ? (
+                  <div className="bg-white dark:bg-[#120a07] p-4 rounded-xl border border-gray-200 dark:border-[#2a1b15]">
+                     <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed font-medium">
+                        {pkg.itemName}
+                     </p>
+                     <div className="mt-4 pt-3 border-t border-gray-100 dark:border-[#2a1b15] flex justify-between items-center">
+                        <span className="text-[10px] text-gray-400 dark:text-gray-500 font-bold uppercase tracking-wide">Dibuat Pada</span>
+                        <span className="text-[11px] text-gray-600 dark:text-gray-400 font-semibold">{formatDate(pkg.addedAt)}</span>
+                     </div>
+                  </div>
+                ) : (
+                  <div className="relative border-l-2 border-gray-200 dark:border-[#2a1b15] ml-3 space-y-6 pb-2">
+                    {(pkg.timeline || []).map((event, index) => (
+                      <div key={event.id || index} className="relative pl-6">
+                        <div className={`absolute -left-[9px] top-1 h-4 w-4 rounded-full border-2 ${index === 0 ? 'bg-black dark:bg-orange-500 ring-4 ring-gray-200 dark:ring-[#2a1b15] border-white dark:border-[#120a07] dark:shadow-[0_0_10px_rgba(249,115,22,0.5)]' : 'bg-gray-300 dark:bg-[#2a1b15] border-gray-50 dark:border-[#0a0503]'}`}></div>
+                        
+                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-1.5">
+                          <div className="pr-4">
+                            <p className={`text-sm leading-relaxed ${index === 0 ? 'font-semibold text-gray-900 dark:text-orange-50' : 'text-gray-600 dark:text-gray-400 font-medium'}`}>
+                              {event.description}
                             </p>
-                          )}
+                            {event.location && (
+                              <p className="text-xs font-semibold text-black dark:text-gray-500 mt-1 flex items-center gap-1">
+                                <MapPin size={12} /> {event.location}
+                              </p>
+                            )}
+                          </div>
+                          <span className="text-[11px] font-medium text-gray-400 dark:text-gray-600 whitespace-nowrap mt-1 sm:mt-0">
+                            {formatDate(event.timestamp)}
+                          </span>
                         </div>
-                        <span className="text-[11px] font-medium text-gray-400 dark:text-gray-600 whitespace-nowrap mt-1 sm:mt-0">
-                          {formatDate(event.timestamp)}
-                        </span>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -635,6 +658,7 @@
       
       // SUPPLIER FORM STATES
       const [supplierName, setSupplierName] = useState('');
+      const [supplierSj, setSupplierSj] = useState('');
       const [supplierNote, setSupplierNote] = useState('');
       const [supplierEta, setSupplierEta] = useState('');
 
@@ -654,6 +678,7 @@
       const [editingPackage, setEditingPackage] = useState(null);
       const [editItemName, setEditItemName] = useState('');
       const [editSupplierName, setEditSupplierName] = useState('');
+      const [editSupplierSj, setEditSupplierSj] = useState('');
       const [editSupplierEta, setEditSupplierEta] = useState('');
 
       const [isAutoSyncing, setIsAutoSyncing] = useState(false);
@@ -906,6 +931,7 @@
             awb: newId,
             courier: 'MANUAL',
             supplierName: supplierName.trim(),
+            sj: supplierSj.trim(),
             itemName: supplierNote.trim(),
             eta: supplierEta || '',
             type: 'supplier',
@@ -923,6 +949,7 @@
           
           setIsModalOpen(false);
           setSupplierName('');
+          setSupplierSj('');
           setSupplierNote('');
           setSupplierEta('');
         } catch (err) {
@@ -949,6 +976,7 @@
         setEditItemName(pkg.itemName || '');
         if (pkg.type === 'supplier') {
           setEditSupplierName(pkg.supplierName || '');
+          setEditSupplierSj(pkg.sj || '');
           setEditSupplierEta(pkg.eta || '');
         }
       };
@@ -961,6 +989,7 @@
             await setDoc(doc(db, 'tracked_packages', editingPackage.awb), { 
               itemName: editItemName.trim(),
               supplierName: editSupplierName.trim(),
+              sj: editSupplierSj.trim(),
               eta: editSupplierEta
             }, { merge: true });
           } else {
@@ -1026,7 +1055,8 @@
             pkg.awb.toLowerCase().includes(query) ||
             (pkg.itemName && pkg.itemName.toLowerCase().includes(query)) ||
             (pkg.courier && pkg.courier.toLowerCase().includes(query)) ||
-            (pkg.supplierName && pkg.supplierName.toLowerCase().includes(query))
+            (pkg.supplierName && pkg.supplierName.toLowerCase().includes(query)) ||
+            (pkg.sj && pkg.sj.toLowerCase().includes(query))
           );
         }).sort((a, b) => {
           if (sortBy === 'newest') return getPackageCreationDate(b) - getPackageCreationDate(a);
@@ -1081,7 +1111,7 @@
                     <input
                       type="text"
                       autoFocus
-                      placeholder={activeTab === 'online' ? "Cari resi, nama, kurir..." : "Cari supplier, notes..."}
+                      placeholder={activeTab === 'online' ? "Cari resi, nama, kurir..." : "Cari supplier, notes, SJ..."}
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       className="w-full pl-10 pr-10 py-0 h-full bg-white dark:bg-[#130d0a] border border-gray-200 dark:border-[#2a1b15] rounded-[14px] sm:rounded-2xl focus:ring-2 focus:ring-black dark:focus:ring-orange-500 focus:border-black dark:focus:border-transparent outline-none text-gray-900 dark:text-white font-medium text-sm shadow-sm placeholder-gray-400 dark:placeholder-gray-600"
@@ -1496,6 +1526,22 @@
                         </div>
 
                         <div className="relative">
+                          <label className="block text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2 ml-1">Nomor SJ (Surat Jalan)</label>
+                          <div className="relative">
+                            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400">
+                              <FileText size={20} />
+                            </div>
+                            <input
+                              type="text"
+                              value={supplierSj}
+                              onChange={(e) => setSupplierSj(e.target.value)}
+                              placeholder="Contoh: SJ/2024/001..."
+                              className="w-full pl-12 pr-4 py-4 bg-gray-50 dark:bg-[#0a0503] border border-gray-200 dark:border-[#26150c] rounded-2xl focus:bg-white dark:focus:bg-[#1a1411] focus:ring-2 focus:ring-black dark:focus:ring-orange-500 focus:border-black dark:focus:border-transparent outline-none text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 font-mono font-medium text-sm sm:text-base"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="relative">
                           <label className="block text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2 ml-1">Nama Barang / Notes</label>
                           <div className="relative">
                             <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400">
@@ -1623,23 +1669,40 @@
                   <form onSubmit={confirmEditPackage}>
                     
                     {editingPackage.type === 'supplier' && (
-                      <div className="mb-4">
-                        <label className="block text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2 ml-1">Nama Supplier Baru</label>
-                        <div className="relative">
-                          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400">
-                            <User size={20} />
+                      <>
+                        <div className="mb-4">
+                          <label className="block text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2 ml-1">Nama Supplier Baru</label>
+                          <div className="relative">
+                            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400">
+                              <User size={20} />
+                            </div>
+                            <input
+                              type="text"
+                              value={editSupplierName}
+                              onChange={(e) => setEditSupplierName(e.target.value)}
+                              placeholder="Masukkan nama supplier..."
+                              className="w-full pl-12 pr-4 py-3.5 bg-gray-50 dark:bg-[#0a0503] border border-gray-200 dark:border-[#26150c] rounded-2xl focus:bg-white dark:focus:bg-[#1a1411] focus:ring-2 focus:ring-black dark:focus:ring-orange-500 focus:border-black dark:focus:border-transparent outline-none text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 font-medium text-sm sm:text-base"
+                              autoFocus
+                              required
+                            />
                           </div>
-                          <input
-                            type="text"
-                            value={editSupplierName}
-                            onChange={(e) => setEditSupplierName(e.target.value)}
-                            placeholder="Masukkan nama supplier..."
-                            className="w-full pl-12 pr-4 py-3.5 bg-gray-50 dark:bg-[#0a0503] border border-gray-200 dark:border-[#26150c] rounded-2xl focus:bg-white dark:focus:bg-[#1a1411] focus:ring-2 focus:ring-black dark:focus:ring-orange-500 focus:border-black dark:focus:border-transparent outline-none text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 font-medium text-sm sm:text-base"
-                            autoFocus
-                            required
-                          />
                         </div>
-                      </div>
+                        <div className="mb-4">
+                          <label className="block text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2 ml-1">Nomor SJ Baru</label>
+                          <div className="relative">
+                            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400">
+                              <FileText size={20} />
+                            </div>
+                            <input
+                              type="text"
+                              value={editSupplierSj}
+                              onChange={(e) => setEditSupplierSj(e.target.value)}
+                              placeholder="Masukkan nomor SJ..."
+                              className="w-full pl-12 pr-4 py-3.5 bg-gray-50 dark:bg-[#0a0503] border border-gray-200 dark:border-[#26150c] rounded-2xl focus:bg-white dark:focus:bg-[#1a1411] focus:ring-2 focus:ring-black dark:focus:ring-orange-500 focus:border-black dark:focus:border-transparent outline-none text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 font-mono font-medium text-sm sm:text-base"
+                            />
+                          </div>
+                        </div>
+                      </>
                     )}
 
                     <div className="mb-4">
