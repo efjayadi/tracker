@@ -139,7 +139,8 @@
     import { 
       Package, Truck, CheckCircle, Clock, RefreshCw, Trash2, 
       Search, AlertCircle, MapPin, X, Plus, Navigation, Filter, Moon, Sun, Zap, ArrowRight,
-      Download, ChevronDown, Edit2, Calendar, User, RotateCcw, FileText, Hourglass, HelpCircle
+      Download, ChevronDown, Edit2, Calendar, User, RotateCcw, FileText, Hourglass, HelpCircle,
+      BellRing, BellOff
     } from 'https://esm.sh/lucide-react@0.263.1';
     
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
@@ -701,6 +702,13 @@
       const [activeTab, setActiveTab] = useState('online');
 
       const [isScrolled, setIsScrolled] = useState(false);
+      
+      // Notifikasi State & Refs
+      const [notifPermission, setNotifPermission] = useState(() => {
+        return typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'default';
+      });
+      const isInitialLoad = useRef(true);
+      const prevPackages = useRef(new Map());
 
       useEffect(() => {
         const handleScroll = () => {
@@ -738,17 +746,80 @@
         return () => unsubscribe();
       }, []);
 
+      const sendNotification = (pkg) => {
+        if (!("Notification" in window) || Notification.permission !== "granted") return;
+
+        const title = "Paket Tiba! 🎉";
+        const bodyText = `${pkg.type === 'supplier' ? 'Pesanan dari' : 'Paket'} ${pkg.supplierName || pkg.itemName || pkg.awb} telah tiba.`;
+        
+        const options = {
+          body: bodyText,
+          icon: './icon-192.png',
+          badge: './icon-192.png',
+          vibrate: [200, 100, 200]
+        };
+
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.ready.then(registration => {
+            registration.showNotification(title, options);
+          }).catch(() => {
+            new Notification(title, options); // Fallback
+          });
+        } else {
+          new Notification(title, options); // Fallback
+        }
+      };
+
+      const requestNotifPermission = () => {
+        if (!("Notification" in window)) {
+          alert("Browser Anda tidak mendukung notifikasi.");
+          return;
+        }
+        Notification.requestPermission().then(permission => {
+          setNotifPermission(permission);
+          if (permission === 'granted') {
+            if ('serviceWorker' in navigator) {
+              navigator.serviceWorker.ready.then(reg => {
+                reg.showNotification("Notifikasi Aktif!", {
+                  body: "Anda akan menerima pemberitahuan saat paket tiba.",
+                  icon: './icon-192.png'
+                });
+              });
+            }
+          }
+        });
+      };
+
       useEffect(() => {
         if (!user || !db) return;
         const publicDataRef = collection(db, 'tracked_packages');
         
         const unsubscribe = onSnapshot(publicDataRef, (snapshot) => {
           const pkgs = [];
+          const newlyDelivered = [];
+
           snapshot.forEach(doc => {
             if (doc.id !== '_system_sync_status_') {
-              pkgs.push(doc.data());
+              const data = doc.data();
+              pkgs.push(data);
+
+              // Cek jika status berubah menjadi DELIVERED (bukan saat awal render)
+              if (!isInitialLoad.current) {
+                const prevStatus = prevPackages.current.get(data.awb);
+                if (prevStatus !== 'DELIVERED' && data.status === 'DELIVERED') {
+                  newlyDelivered.push(data);
+                }
+              }
+              prevPackages.current.set(data.awb, data.status);
             }
           });
+
+          // Picu Notifikasi HP
+          if (!isInitialLoad.current && newlyDelivered.length > 0) {
+            newlyDelivered.forEach(p => sendNotification(p));
+          }
+          
+          isInitialLoad.current = false;
           pkgs.sort((a, b) => getPackageCreationDate(a) - getPackageCreationDate(b));
           setPackages(pkgs);
         }, (error) => {
@@ -756,7 +827,7 @@
         });
 
         return () => unsubscribe();
-      }, [user]);
+      }, [user, db]);
 
       const packagesRef = useRef(packages);
       useEffect(() => {
@@ -1228,9 +1299,19 @@
                     </div>
                   )}
 
+                  {notifPermission !== 'granted' && (
+                    <button
+                      onClick={requestNotifPermission}
+                      className="h-10 w-10 sm:h-12 sm:w-12 border rounded-[14px] sm:rounded-2xl flex items-center justify-center transition-colors shadow-sm shrink-0 bg-white dark:bg-orange-500/10 border-gray-200 dark:border-orange-500/30 text-gray-700 dark:text-orange-400 hover:bg-gray-50 dark:hover:bg-orange-500/20"
+                      title="Aktifkan Notifikasi"
+                    >
+                      <BellOff size={20} className="sm:w-5 sm:h-5" />
+                    </button>
+                  )}
+
                   <button
                     onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                    className="h-10 w-10 sm:h-12 sm:w-12 bg-white dark:bg-orange-500/10 border border-gray-200 dark:border-orange-500/30 rounded-[14px] sm:rounded-2xl flex items-center justify-center text-gray-700 dark:text-orange-400 shadow-sm hover:bg-gray-50 dark:hover:bg-orange-500/20 transition-colors"
+                    className="h-10 w-10 sm:h-12 sm:w-12 bg-white dark:bg-orange-500/10 border border-gray-200 dark:border-orange-500/30 rounded-[14px] sm:rounded-2xl flex items-center justify-center text-gray-700 dark:text-orange-400 shadow-sm hover:bg-gray-50 dark:hover:bg-orange-500/20 transition-colors shrink-0"
                     title={theme === 'dark' ? 'Mode Terang' : 'Mode Gelap'}
                   >
                     {theme === 'dark' ? <Sun size={20} className="sm:w-5 sm:h-5" /> : <Moon size={20} className="sm:w-5 sm:h-5" />}
