@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>YEN BANGUNAN - Tracker Pesanan</title>
   
-  <!-- 0. PWA Meta Tags & Manifest (TEMA PUTIH) -->
+  <!-- PWA Meta Tags & Manifest -->
   <meta name="theme-color" content="#ffffff">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -13,90 +13,83 @@
   <link rel="apple-touch-icon" href="./icon-192.png">
   <link rel="manifest" href="./manifest.json">
 
-  <!-- 1. Service Worker Registration & Global PWA Catcher -->
+  <!-- Service Worker Registration -->
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('./service-worker.js')
-          .then(registration => {
-            console.log('ServiceWorker terdaftar dengan scope: ', registration.scope);
-          })
-          .catch(err => {
-            console.log('ServiceWorker gagal mendaftar: ', err);
-          });
+          .then(registration => console.log('ServiceWorker terdaftar dengan scope: ', registration.scope))
+          .catch(err => console.log('ServiceWorker gagal mendaftar: ', err));
       });
     }
 
-    // GLOBAL PWA PROMPT CATCHER (Menangkap event sebelum React me-render)
+    // GLOBAL PWA PROMPT CATCHER
     window.deferredPrompt = null;
     window.addEventListener('beforeinstallprompt', (e) => {
       e.preventDefault();
       window.deferredPrompt = e;
-      // Beritahu React bahwa PWA siap
       window.dispatchEvent(new Event('pwa-ready'));
     });
   </script>
 
-  <!-- 2. Tailwind CSS -->
+  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   
-  <!-- 3. Tailwind Configuration -->
+  <!-- Tailwind Configuration -->
   <script>
-    window.tailwind = {
-      config: {
-        darkMode: 'class', 
-        theme: {
-          extend: {
-            fontFamily: {
-              sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'system-ui', 'sans-serif'],
+    tailwind.config = {
+      darkMode: 'class', 
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'system-ui', 'sans-serif'],
+          },
+          animation: {
+            'wave': 'wave 20s ease-in-out infinite alternate',
+            'wave-slow': 'wave 25s ease-in-out infinite alternate-reverse',
+            'slide-down': 'slide-down 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+            'truck-drive': 'truck-drive 0.2s linear infinite',
+            'wind-1': 'wind-flow 0.4s linear infinite',
+            'wind-2': 'wind-flow 0.4s linear infinite 0.1s',
+            'wind-3': 'wind-flow 0.4s linear infinite 0.2s',
+            'package-jitter': 'package-jitter 0.5s ease-in-out infinite',
+            'hourglass-flip': 'hourglass-flip 2s ease-in-out infinite',
+            'question-pulse': 'question-pulse 1.5s ease-in-out infinite',
+          },
+          keyframes: {
+            wave: {
+              '0%': { transform: 'translate(0px, 0px) scale(1) rotate(0deg)' },
+              '33%': { transform: 'translate(30px, -50px) scale(1.1) rotate(5deg)' },
+              '66%': { transform: 'translate(-20px, 20px) scale(0.9) rotate(-5deg)' },
+              '100%': { transform: 'translate(0px, 0px) scale(1) rotate(0deg)' }
             },
-            animation: {
-              'wave': 'wave 20s ease-in-out infinite alternate',
-              'wave-slow': 'wave 25s ease-in-out infinite alternate-reverse',
-              'slide-down': 'slide-down 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards',
-              'truck-drive': 'truck-drive 0.2s linear infinite',
-              'wind-1': 'wind-flow 0.4s linear infinite',
-              'wind-2': 'wind-flow 0.4s linear infinite 0.1s',
-              'wind-3': 'wind-flow 0.4s linear infinite 0.2s',
-              'package-jitter': 'package-jitter 0.5s ease-in-out infinite',
-              'hourglass-flip': 'hourglass-flip 2s ease-in-out infinite',
-              'question-pulse': 'question-pulse 1.5s ease-in-out infinite',
+            'slide-down': {
+              '0%': { transform: 'translateY(-150%)', opacity: '0' },
+              '100%': { transform: 'translateY(0)', opacity: '1' }
             },
-            keyframes: {
-              wave: {
-                '0%': { transform: 'translate(0px, 0px) scale(1) rotate(0deg)' },
-                '33%': { transform: 'translate(30px, -50px) scale(1.1) rotate(5deg)' },
-                '66%': { transform: 'translate(-20px, 20px) scale(0.9) rotate(-5deg)' },
-                '100%': { transform: 'translate(0px, 0px) scale(1) rotate(0deg)' }
-              },
-              'slide-down': {
-                '0%': { transform: 'translateY(-150%)', opacity: '0' },
-                '100%': { transform: 'translateY(0)', opacity: '1' }
-              },
-              'truck-drive': {
-                '0%, 100%': { transform: 'translateX(0) translateY(0)' },
-                '25%': { transform: 'translateX(0.5px) translateY(-0.5px)' },
-                '50%': { transform: 'translateX(-0.5px) translateY(0)' },
-                '75%': { transform: 'translateX(0.5px) translateY(0.5px)' },
-              },
-              'wind-flow': {
-                '0%': { transform: 'translateX(0)', opacity: '0' },
-                '30%': { opacity: '0.8' },
-                '100%': { transform: 'translateX(-12px)', opacity: '0' },
-              },
-              'package-jitter': {
-                '0%, 100%': { transform: 'rotate(0deg) scale(1)' },
-                '25%': { transform: 'rotate(-3deg) scale(1.05)' },
-                '75%': { transform: 'rotate(3deg) scale(1.05)' },
-              },
-              'hourglass-flip': {
-                '0%': { transform: 'rotate(0deg)' },
-                '40%, 100%': { transform: 'rotate(180deg)' },
-              },
-              'question-pulse': {
-                '0%, 100%': { transform: 'scale(1) rotate(0deg)', opacity: '0.7' },
-                '50%': { transform: 'scale(1.2) rotate(10deg)', opacity: '1' },
-              }
+            'truck-drive': {
+              '0%, 100%': { transform: 'translateX(0) translateY(0)' },
+              '25%': { transform: 'translateX(0.5px) translateY(-0.5px)' },
+              '50%': { transform: 'translateX(-0.5px) translateY(0)' },
+              '75%': { transform: 'translateX(0.5px) translateY(0.5px)' },
+            },
+            'wind-flow': {
+              '0%': { transform: 'translateX(0)', opacity: '0' },
+              '30%': { opacity: '0.8' },
+              '100%': { transform: 'translateX(-12px)', opacity: '0' },
+            },
+            'package-jitter': {
+              '0%, 100%': { transform: 'rotate(0deg) scale(1)' },
+              '25%': { transform: 'rotate(-3deg) scale(1.05)' },
+              '75%': { transform: 'rotate(3deg) scale(1.05)' },
+            },
+            'hourglass-flip': {
+              '0%': { transform: 'rotate(0deg)' },
+              '40%, 100%': { transform: 'rotate(180deg)' },
+            },
+            'question-pulse': {
+              '0%, 100%': { transform: 'scale(1) rotate(0deg)', opacity: '0.7' },
+              '50%': { transform: 'scale(1.2) rotate(10deg)', opacity: '1' },
             }
           }
         }
@@ -107,32 +100,23 @@
   <!-- Babel Standalone -->
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   
-  <!-- Font: Bebas Neue (Header) & Inter (iOS-style UI Font) -->
+  <!-- Fonts -->
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   
   <style>
-    /* Styling for dark mode date picker icon */
     .dark input[type="date"]::-webkit-calendar-picker-indicator {
       filter: invert(1);
       cursor: pointer;
     }
-    
-    /* Smooth scroll for better experience */
-    html {
-      scroll-behavior: smooth;
-    }
-
-    /* Pull to refresh safety */
-    body {
-      overscroll-behavior-y: contain;
-    }
+    html { scroll-behavior: smooth; }
+    body { overscroll-behavior-y: contain; }
   </style>
 </head>
 <body class="bg-[#F8FAFC] dark:bg-[#080302] text-gray-900 dark:text-white antialiased selection:bg-black selection:text-white dark:selection:bg-white dark:selection:text-black transition-colors duration-300">
   
   <div id="root"></div>
 
-  <!-- Script Aplikasi (Module + Babel) -->
+  <!-- React Application -->
   <script type="text/babel" data-type="module">
     import React, { useState, useEffect, useRef, useMemo } from 'https://esm.sh/react@18.2.0';
     import { createRoot } from 'https://esm.sh/react-dom@18.2.0/client';
@@ -140,7 +124,7 @@
       Package, Truck, CheckCircle, Clock, RefreshCw, Trash2, 
       Search, AlertCircle, MapPin, X, Plus, Navigation, Filter, Moon, Sun, Zap, ArrowRight,
       Download, ChevronDown, Edit2, Calendar, User, RotateCcw, FileText, Hourglass, HelpCircle,
-      BellRing, BellOff
+      BellRing, BellOff, ArrowUp
     } from 'https://esm.sh/lucide-react@0.263.1';
     
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
@@ -169,13 +153,18 @@
       console.error("Gagal inisialisasi Firebase", e);
     }
 
+    // Direct paths to your original collection
+    const getCollectionRef = () => collection(db, 'tracked_packages');
+    const getDocRef = (docId) => doc(db, 'tracked_packages', docId);
+
     // ==========================================
-    // PWA INSTALL PROMPT COMPONENT (iOS Style)
+    // PWA INSTALL PROMPT COMPONENT
     // ==========================================
     const PwaInstallPrompt = () => {
       const [isVisible, setIsVisible] = useState(false);
       const [deferredPrompt, setDeferredPrompt] = useState(null);
       const [isIOS, setIsIOS] = useState(false);
+      const [showIosInstructions, setShowIosInstructions] = useState(false);
 
       useEffect(() => {
         const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
@@ -200,9 +189,7 @@
 
         let iosTimer;
         if (iosDevice) {
-          iosTimer = setTimeout(() => {
-            setIsVisible(true);
-          }, 2500); 
+          iosTimer = setTimeout(() => setIsVisible(true), 2500); 
         }
 
         return () => {
@@ -213,13 +200,11 @@
 
       const handleInstall = async () => {
         if (isIOS) {
-          alert("Untuk menginstal di iOS:\n\n1. Tekan ikon 'Share' di browser Anda\n2. Pilih menu 'Add to Home Screen' (Tambahkan ke Layar Utama)");
+          setShowIosInstructions(true);
         } else if (deferredPrompt) {
           deferredPrompt.prompt();
           const { outcome } = await deferredPrompt.userChoice;
-          if (outcome === 'accepted') {
-            setIsVisible(false);
-          }
+          if (outcome === 'accepted') setIsVisible(false);
           setDeferredPrompt(null);
           window.deferredPrompt = null;
         }
@@ -229,30 +214,40 @@
 
       return (
         <div className="fixed top-4 left-0 right-0 z-[9999] flex justify-center px-4 pointer-events-none">
-          <div className="pointer-events-auto flex items-center gap-3 w-full max-w-[380px] p-3 bg-white/80 dark:bg-black/70 backdrop-blur-xl border border-white/50 dark:border-[#2a1b15] shadow-2xl rounded-2xl animate-slide-down">
-            <img src="./icon-512.png" alt="App Icon" className="w-12 h-12 rounded-[12px] object-cover shadow-md shrink-0 border border-gray-100 dark:border-[#2a1b15]" onError={(e) => {e.target.style.display='none'}} />
-            
-            <div className="flex-1 min-w-0">
-              <h4 className="font-bold text-gray-900 dark:text-white text-[14px] mb-0.5">Download This App</h4>
-              <p className="text-[11px] text-gray-500 dark:text-gray-400 truncate">Biar lebih mudah dan lebih cepat</p>
-            </div>
-            
-            <div className="flex items-center gap-3 shrink-0">
-              <button 
-                onClick={handleInstall}
-                className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-1.5 rounded-full shadow-sm active:scale-95 transition-all"
-              >
-                INSTALL
-              </button>
+          <div className="pointer-events-auto flex flex-col gap-2 w-full max-w-[380px] p-3 bg-white/90 dark:bg-black/80 backdrop-blur-xl border border-white/50 dark:border-[#2a1b15] shadow-2xl rounded-2xl animate-slide-down">
+            <div className="flex items-center gap-3">
+              <img src="./icon-512.png" alt="App Icon" className="w-12 h-12 rounded-[12px] object-cover shadow-md shrink-0 border border-gray-100 dark:border-[#2a1b15]" onError={(e) => {e.target.style.display='none'}} />
+              <div className="flex-1 min-w-0">
+                <h4 className="font-bold text-gray-900 dark:text-white text-[14px] mb-0.5">Download This App</h4>
+                <p className="text-[11px] text-gray-500 dark:text-gray-400 truncate">Biar lebih mudah dan lebih cepat</p>
+              </div>
               
-              <button 
-                onClick={() => setIsVisible(false)}
-                className="p-1 -mr-1 rounded-full text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
-                title="Tutup"
-              >
-                <X size={16} strokeWidth={2.5} />
-              </button>
+              <div className="flex items-center gap-3 shrink-0">
+                <button 
+                  onClick={handleInstall}
+                  className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-1.5 rounded-full shadow-sm active:scale-95 transition-all"
+                >
+                  INSTALL
+                </button>
+                <button 
+                  onClick={() => setIsVisible(false)}
+                  className="p-1 -mr-1 rounded-full text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+                  title="Tutup"
+                >
+                  <X size={16} strokeWidth={2.5} />
+                </button>
+              </div>
             </div>
+            
+            {showIosInstructions && (
+              <div className="mt-2 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg text-xs text-gray-700 dark:text-gray-300">
+                <p className="font-semibold mb-1">Untuk menginstal di iOS:</p>
+                <ol className="list-decimal pl-4 space-y-1">
+                  <li>Tekan ikon <strong>Share</strong> di browser Anda</li>
+                  <li>Pilih menu <strong>Add to Home Screen</strong></li>
+                </ol>
+              </div>
+            )}
           </div>
         </div>
       );
@@ -299,16 +294,10 @@
           } catch (proxyErr) {}
         }
         
-        if (!result) {
-          throw new Error("Gagal terhubung ke server. Pastikan internet stabil.");
-        }
-
-        if (result.status !== 200) {
-          throw new Error(result.message || "Gagal melacak paket. Periksa kembali resi dan kurir Anda.");
-        }
+        if (!result) throw new Error("Gagal terhubung ke server. Pastikan internet stabil.");
+        if (result.status !== 200) throw new Error(result.message || "Gagal melacak paket. Periksa kembali resi dan kurir Anda.");
 
         const data = result.data;
-        
         let mappedStatus = 'TRANSIT';
         const rawStatus = (data.summary.status || '').toUpperCase();
         if (rawStatus.includes('DELIVERED') || rawStatus.includes('SUCCESS')) mappedStatus = 'DELIVERED';
@@ -404,7 +393,6 @@
         colorClass = 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800/50';
       }
 
-      // Convert specific date into a short readable text format e.g., "4 Apr"
       const dateText = new Intl.DateTimeFormat('id-ID', { day: 'numeric', month: 'short' }).format(etaDate);
 
       return (
@@ -461,7 +449,7 @@
       return etaStr; 
     };
 
-    const PackageCapsule = ({ pkg, onRemove, onEdit, onRequestMarkDelivered, onUndoDelivered, isExpanded, onToggleExpand, currentView, deliveringAwb }) => {
+    const PackageCapsule = ({ pkg, onRemove, onEdit, onRequestMarkDelivered, onUndoDelivered, isExpanded, onToggleExpand, deliveringAwb }) => {
       if (!pkg) return null;
       
       const isSupplier = pkg.type === 'supplier';
@@ -484,13 +472,10 @@
 
       const etaDisplay = formatEtaBadge(pkg.eta);
       const supplierRelativeText = isSupplier ? getSupplierRelativeText(pkg.eta) : '';
-
-      // Status ini sekarang dikontrol dari prop App agar bisa dianimasikan setelah modal disetujui
       const isFlying = deliveringAwb === pkg.awb;
 
       const getSupplierIconConfig = () => {
         if (!pkg.eta) return { icon: HelpCircle, animate: "animate-question-pulse" };
-
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         const etaDate = new Date(pkg.eta.replace(' ', 'T'));
@@ -520,8 +505,7 @@
               onClick={!isSupplier ? onToggleExpand : undefined}
             >
               <div className={`flex flex-col items-stretch justify-center gap-1 shrink-0 ${isSupplier ? 'w-[88px] sm:w-[100px]' : 'w-[60px] sm:w-[68px]'}`}>
-                
-                {isSupplier && currentView === 'riwayat' ? (
+                {isSupplier && pkg.status === 'DELIVERED' ? (
                   <div className="flex items-center justify-center w-full h-[58px] sm:h-[64px] bg-black text-white rounded-lg font-black text-[11px] sm:text-sm uppercase tracking-widest shadow-sm dark:bg-white dark:text-black">
                     <CheckCircle size={14} className="mr-1.5 shrink-0" strokeWidth={3} />
                     TIBA
@@ -586,7 +570,7 @@
                   </button>
                 )}
                 
-                {isSupplier && pkg.status === 'DELIVERED' && currentView === 'riwayat' && (
+                {isSupplier && pkg.status === 'DELIVERED' && (
                   <button 
                     onClick={(e) => { e.stopPropagation(); onUndoDelivered(pkg); }}
                     className="p-1.5 sm:p-2 rounded-xl text-gray-900 dark:text-orange-400 dark:bg-orange-500/10 hover:text-white dark:hover:text-white hover:bg-orange-500 dark:hover:bg-orange-500 transition-colors"
@@ -596,7 +580,7 @@
                   </button>
                 )}
 
-                {currentView !== 'riwayat' && (
+                {pkg.status !== 'DELIVERED' && (
                   <button 
                     onClick={(e) => { e.stopPropagation(); onEdit(pkg); }}
                     className="p-1.5 sm:p-2 rounded-xl text-gray-900 dark:text-orange-400 dark:bg-orange-500/10 hover:text-white dark:hover:text-white hover:bg-blue-500 dark:hover:bg-blue-600 transition-colors"
@@ -605,7 +589,7 @@
                     <Edit2 size={16} />
                   </button>
                 )}
-                {!(isSupplier && currentView === 'aktif') && (
+                {!(isSupplier && pkg.status !== 'DELIVERED') && (
                   <button 
                     onClick={(e) => { e.stopPropagation(); onRemove(pkg); }}
                     className="p-1.5 sm:p-2 rounded-xl text-gray-900 dark:text-orange-400 dark:bg-orange-500/10 hover:text-white dark:hover:text-white hover:bg-red-500 dark:hover:bg-red-600 transition-colors"
@@ -697,15 +681,17 @@
       const [editSupplierEta, setEditSupplierEta] = useState('');
 
       const [isAutoSyncing, setIsAutoSyncing] = useState(false);
-      const [currentView, setCurrentView] = useState('aktif');
-      const [isDropdownOpen, setIsDropdownOpen] = useState(false);
       const [activeTab, setActiveTab] = useState('online');
 
       const [isScrolled, setIsScrolled] = useState(false);
+      const [showScrollTop, setShowScrollTop] = useState(false);
       
-      // Notifikasi State & Refs
       const [notifPermission, setNotifPermission] = useState(() => {
-        return typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'default';
+        try {
+          return typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'default';
+        } catch (e) {
+          return 'default';
+        }
       });
       const isInitialLoad = useRef(true);
       const prevPackages = useRef(new Map());
@@ -713,33 +699,47 @@
       useEffect(() => {
         const handleScroll = () => {
           setIsScrolled(window.scrollY > 80);
+          setShowScrollTop(window.scrollY > 300);
         };
         window.addEventListener('scroll', handleScroll);
         return () => window.removeEventListener('scroll', handleScroll);
       }, []);
 
+      const scrollToTop = () => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      };
+
       const [theme, setTheme] = useState(() => {
         if (typeof window !== 'undefined') {
-          return localStorage.getItem('theme') || 'light';
+          try {
+            return localStorage.getItem('theme') || 'light';
+          } catch (e) {
+            return 'light';
+          }
         }
         return 'light';
       });
 
       useEffect(() => {
         const root = document.documentElement;
-        if (theme === 'dark') {
-          root.classList.add('dark');
-        } else {
-          root.classList.remove('dark');
+        if (theme === 'dark') root.classList.add('dark');
+        else root.classList.remove('dark');
+        try {
+          localStorage.setItem('theme', theme);
+        } catch (e) {
+          // Ignore storage errors in sandboxed environments
         }
-        localStorage.setItem('theme', theme);
       }, [theme]);
 
+      // Firebase Auth
       useEffect(() => {
         if (!auth) return;
         const initAuth = async () => {
-          try { await signInAnonymously(auth); } 
-          catch (e) { console.error("Auth init error:", e); }
+          try {
+            await signInAnonymously(auth);
+          } catch (error) {
+            console.error('Auth init error:', error);
+          }
         };
         initAuth();
         const unsubscribe = onAuthStateChanged(auth, setUser);
@@ -751,22 +751,13 @@
 
         const title = "Paket Tiba! 🎉";
         const bodyText = `${pkg.type === 'supplier' ? 'Pesanan dari' : 'Paket'} ${pkg.supplierName || pkg.itemName || pkg.awb} telah tiba.`;
-        
-        const options = {
-          body: bodyText,
-          icon: './icon-192.png',
-          badge: './icon-192.png',
-          vibrate: [200, 100, 200]
-        };
+        const options = { body: bodyText, icon: './icon-192.png', badge: './icon-192.png', vibrate: [200, 100, 200] };
 
         if ('serviceWorker' in navigator) {
-          navigator.serviceWorker.ready.then(registration => {
-            registration.showNotification(title, options);
-          }).catch(() => {
-            new Notification(title, options); // Fallback
-          });
+          navigator.serviceWorker.ready.then(registration => registration.showNotification(title, options))
+            .catch(() => new Notification(title, options));
         } else {
-          new Notification(title, options); // Fallback
+          new Notification(title, options);
         }
       };
 
@@ -777,23 +768,19 @@
         }
         Notification.requestPermission().then(permission => {
           setNotifPermission(permission);
-          if (permission === 'granted') {
-            if ('serviceWorker' in navigator) {
-              navigator.serviceWorker.ready.then(reg => {
-                reg.showNotification("Notifikasi Aktif!", {
-                  body: "Anda akan menerima pemberitahuan saat paket tiba.",
-                  icon: './icon-192.png'
-                });
-              });
-            }
+          if (permission === 'granted' && 'serviceWorker' in navigator) {
+            navigator.serviceWorker.ready.then(reg => {
+              reg.showNotification("Notifikasi Aktif!", { body: "Anda akan menerima pemberitahuan saat paket tiba.", icon: './icon-192.png' });
+            });
           }
         });
       };
 
+      // Strict Data Fetching Effect
       useEffect(() => {
         if (!user || !db) return;
-        const publicDataRef = collection(db, 'tracked_packages');
         
+        const publicDataRef = getCollectionRef();
         const unsubscribe = onSnapshot(publicDataRef, (snapshot) => {
           const pkgs = [];
           const newlyDelivered = [];
@@ -803,21 +790,15 @@
               const data = doc.data();
               pkgs.push(data);
 
-              // Cek jika status berubah menjadi DELIVERED (bukan saat awal render)
               if (!isInitialLoad.current) {
                 const prevStatus = prevPackages.current.get(data.awb);
-                if (prevStatus !== 'DELIVERED' && data.status === 'DELIVERED') {
-                  newlyDelivered.push(data);
-                }
+                if (prevStatus !== 'DELIVERED' && data.status === 'DELIVERED') newlyDelivered.push(data);
               }
               prevPackages.current.set(data.awb, data.status);
             }
           });
 
-          // Picu Notifikasi HP
-          if (!isInitialLoad.current && newlyDelivered.length > 0) {
-            newlyDelivered.forEach(p => sendNotification(p));
-          }
+          if (!isInitialLoad.current && newlyDelivered.length > 0) newlyDelivered.forEach(p => sendNotification(p));
           
           isInitialLoad.current = false;
           pkgs.sort((a, b) => getPackageCreationDate(a) - getPackageCreationDate(b));
@@ -834,6 +815,7 @@
         packagesRef.current = packages;
       }, [packages]);
 
+      // Auto-Sync Background
       useEffect(() => {
         if (!user || !db) return;
 
@@ -855,14 +837,12 @@
           let shouldSync = false;
 
           try {
-            const syncDocRef = doc(db, 'tracked_packages', '_system_sync_status_');
+            const syncDocRef = getDocRef('_system_sync_status_');
             const syncSnap = await getDoc(syncDocRef);
             
             if (syncSnap.exists()) {
               const data = syncSnap.data();
-              if (data.date === dateString) {
-                globalSyncState = data;
-              }
+              if (data.date === dateString) globalSyncState = data;
             }
 
             if (day !== 0) {
@@ -878,7 +858,6 @@
 
             if (shouldSync && pkgs.length > 0) {
               await setDoc(syncDocRef, globalSyncState);
-
               if (isMounted) setIsAutoSyncing(true);
               
               for (const pkg of pkgs) {
@@ -888,19 +867,15 @@
                 try {
                   const updatedData = await fetchTrackingFromAPI(pkg.awb, pkg.courier, pkg.itemName);
                   updatedData.type = pkg.type || 'online'; 
-                  await setDoc(doc(db, 'tracked_packages', pkg.awb), updatedData, { merge: true });
+                  await setDoc(getDocRef(pkg.awb), updatedData, { merge: true });
                 } catch (err) {
                   console.error(`Auto-sync gagal untuk ${pkg.awb}`, err);
                 }
-                
                 await new Promise(resolve => setTimeout(resolve, 1500));
               }
-              
               if (isMounted) setIsAutoSyncing(false);
             }
-          } catch (e) {
-            console.error("Gagal membaca atau menulis status sync global", e);
-          }
+          } catch (e) { console.error("Gagal membaca atau menulis status sync", e); }
 
           if (!isMounted) return;
 
@@ -911,30 +886,20 @@
             nextTarget.setDate(now.getDate() + 1);
             nextTarget.setHours(9);
           } else {
-            if (hour < 9) {
-              nextTarget.setHours(9);
-            } else if (hour >= 9 && hour < 15) {
-              nextTarget.setHours(15);
-            } else {
+            if (hour < 9) nextTarget.setHours(9);
+            else if (hour >= 9 && hour < 15) nextTarget.setHours(15);
+            else {
               nextTarget.setDate(now.getDate() + 1);
               nextTarget.setHours(9);
-              if (nextTarget.getDay() === 0) {
-                nextTarget.setDate(nextTarget.getDate() + 1);
-              }
+              if (nextTarget.getDay() === 0) nextTarget.setDate(nextTarget.getDate() + 1);
             }
           }
 
           const delay = nextTarget.getTime() - new Date().getTime();
-          
-          timeoutId = setTimeout(() => {
-            checkAndRunAutoSync();
-          }, Math.max(delay, 1000));
+          timeoutId = setTimeout(checkAndRunAutoSync, Math.max(delay, 1000));
         };
 
-        const initTimeout = setTimeout(() => {
-          checkAndRunAutoSync();
-        }, 3000);
-        
+        const initTimeout = setTimeout(checkAndRunAutoSync, 3000);
         return () => {
           isMounted = false;
           clearTimeout(initTimeout);
@@ -945,102 +910,66 @@
       const performTracking = async (awbToTrack, courierToTrack, itemNameToTrack, packageType = 'online') => {
         setIsLoading(true);
         setError('');
-
         try {
           const newData = await fetchTrackingFromAPI(awbToTrack, courierToTrack, itemNameToTrack);
           newData.type = packageType;
-          const docRef = doc(db, 'tracked_packages', newData.awb);
-          await setDoc(docRef, newData);
-          
-          setInputValue('');
-          setItemName('');
-          setIsModalOpen(false);
-        } catch (err) {
-          setError(err.message || 'Gagal melacak resi. Silakan coba lagi.');
-        } finally {
-          setIsLoading(false);
-        }
+          await setDoc(getDocRef(newData.awb), newData);
+          setInputValue(''); setItemName(''); setIsModalOpen(false);
+        } catch (err) { setError(err.message || 'Gagal melacak resi. Silakan coba lagi.'); }
+        finally { setIsLoading(false); }
       };
 
       const handleAddPackage = async (e) => {
         e.preventDefault();
         if (!inputValue.trim() || !user || !db) return;
-
         if (packages.some(p => p.awb.toLowerCase() === inputValue.toLowerCase())) {
           setError('Nomor resi ini sudah ada di daftar pantauan Anda.');
           return;
         }
-
         await performTracking(inputValue.trim().toUpperCase(), selectedCourier, itemName.trim(), 'online');
       };
 
       const handleAddSupplierNote = async (e) => {
         e.preventDefault();
         if (!user || !db) return;
-        
-        setIsLoading(true);
-        setError('');
+        setIsLoading(true); setError('');
 
         try {
           const newId = `SUP_${Date.now()}`;
           const newPkg = {
-            awb: newId,
-            courier: 'MANUAL',
-            supplierName: supplierName.trim(),
-            sj: supplierSj.trim(),
-            itemName: supplierNote.trim(),
-            eta: supplierEta || '',
-            type: 'supplier',
-            status: 'PENDING',
-            timeline: [{
-              id: Date.now().toString(),
-              description: 'Catatan Supplier Dibuat',
-              timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19)
-            }],
-            addedAt: new Date().toISOString(),
-            lastUpdated: new Date().toISOString()
+            awb: newId, courier: 'MANUAL',
+            supplierName: supplierName.trim(), sj: supplierSj.trim(), itemName: supplierNote.trim(),
+            eta: supplierEta || '', type: 'supplier', status: 'PENDING',
+            timeline: [{ id: Date.now().toString(), description: 'Catatan Supplier Dibuat', timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19) }],
+            addedAt: new Date().toISOString(), lastUpdated: new Date().toISOString()
           };
           
-          await setDoc(doc(db, 'tracked_packages', newId), newPkg);
-          
-          setIsModalOpen(false);
-          setSupplierName('');
-          setSupplierSj('');
-          setSupplierNote('');
-          setSupplierEta('');
-        } catch (err) {
-          setError('Gagal menyimpan catatan supplier.');
-        } finally {
-          setIsLoading(false);
-        }
+          await setDoc(getDocRef(newId), newPkg);
+          setIsModalOpen(false); setSupplierName(''); setSupplierSj(''); setSupplierNote(''); setSupplierEta('');
+        } catch (err) { setError('Gagal menyimpan catatan supplier.'); }
+        finally { setIsLoading(false); }
       };
 
       const requestRemovePackage = (pkg) => setPackageToDelete(pkg);
-
       const confirmRemovePackage = async () => {
         if (!user || !db || !packageToDelete) return;
         try {
-          await deleteDoc(doc(db, 'tracked_packages', packageToDelete.awb));
+          await deleteDoc(getDocRef(packageToDelete.awb));
           setPackageToDelete(null);
         } catch (err) { console.error("Failed to remove package", err); }
       };
 
       const requestMarkDelivered = (pkg) => setPackageToDeliver(pkg);
-
       const confirmMarkDelivered = async () => {
         if (!user || !db || !packageToDeliver) return;
         
         const pkg = packageToDeliver;
-        setPackageToDeliver(null); // Tutup pop-up segera
-        setDeliveringAwb(pkg.awb); // Nyalakan animasi terbang
+        setPackageToDeliver(null);
+        setDeliveringAwb(pkg.awb);
 
-        // Tunggu animasi terbang selesai (600ms) sebelum update database
         setTimeout(async () => {
           try {
-            await setDoc(doc(db, 'tracked_packages', pkg.awb), { 
-              status: 'DELIVERED',
-              lastUpdated: new Date().toISOString()
-            }, { merge: true });
+            await setDoc(getDocRef(pkg.awb), { status: 'DELIVERED', lastUpdated: new Date().toISOString() }, { merge: true });
           } catch (err) { console.error("Failed to update status", err); }
           setDeliveringAwb(null);
         }, 600);
@@ -1050,9 +979,7 @@
         setEditingPackage(pkg);
         setEditItemName(pkg.itemName || '');
         if (pkg.type === 'supplier') {
-          setEditSupplierName(pkg.supplierName || '');
-          setEditSupplierSj(pkg.sj || '');
-          setEditSupplierEta(pkg.eta || '');
+          setEditSupplierName(pkg.supplierName || ''); setEditSupplierSj(pkg.sj || ''); setEditSupplierEta(pkg.eta || '');
         }
       };
 
@@ -1061,14 +988,11 @@
         if (!user || !db || !editingPackage) return;
         try {
           if (editingPackage.type === 'supplier') {
-            await setDoc(doc(db, 'tracked_packages', editingPackage.awb), { 
-              itemName: editItemName.trim(),
-              supplierName: editSupplierName.trim(),
-              sj: editSupplierSj.trim(),
-              eta: editSupplierEta
+            await setDoc(getDocRef(editingPackage.awb), { 
+              itemName: editItemName.trim(), supplierName: editSupplierName.trim(), sj: editSupplierSj.trim(), eta: editSupplierEta
             }, { merge: true });
           } else {
-            await setDoc(doc(db, 'tracked_packages', editingPackage.awb), { itemName: editItemName.trim() }, { merge: true });
+            await setDoc(getDocRef(editingPackage.awb), { itemName: editItemName.trim() }, { merge: true });
           }
           setEditingPackage(null);
         } catch (err) { console.error("Failed to edit package", err); }
@@ -1077,10 +1001,7 @@
       const undoSupplierDelivered = async (pkg) => {
         if (!user || !db) return;
         try {
-          await setDoc(doc(db, 'tracked_packages', pkg.awb), { 
-            status: 'PENDING',
-            lastUpdated: new Date().toISOString()
-          }, { merge: true });
+          await setDoc(getDocRef(pkg.awb), { status: 'PENDING', lastUpdated: new Date().toISOString() }, { merge: true });
         } catch (err) { console.error("Failed to undo status", err); }
       };
 
@@ -1095,14 +1016,6 @@
 
       const allOnlinePackages = packages.filter(p => !p.type || p.type === 'online');
       const allSupplierPackages = packages.filter(p => p.type === 'supplier');
-
-      const activeOnline = allOnlinePackages.filter(p => !checkIsArchived(p));
-      const archivedOnline = allOnlinePackages.filter(p => checkIsArchived(p));
-      const sourceOnlinePackages = currentView === 'aktif' ? activeOnline : archivedOnline;
-
-      const activeSupplier = allSupplierPackages.filter(p => !checkIsArchived(p));
-      const archivedSupplier = allSupplierPackages.filter(p => checkIsArchived(p));
-      const sourceSupplierPackages = currentView === 'aktif' ? activeSupplier : archivedSupplier;
 
       const filterAndSort = (pkgs) => {
         return pkgs.filter(pkg => {
@@ -1138,8 +1051,13 @@
         });
       };
 
-      const displayOnlinePackages = filterAndSort(sourceOnlinePackages);
-      const displaySupplierPackages = filterAndSort(sourceSupplierPackages);
+      const processedOnline = filterAndSort(allOnlinePackages);
+      const displayOnlineActive = processedOnline.filter(p => !checkIsArchived(p));
+      const displayOnlineHistory = processedOnline.filter(p => checkIsArchived(p));
+
+      const processedSupplier = filterAndSort(allSupplierPackages);
+      const displaySupplierActive = processedSupplier.filter(p => !checkIsArchived(p));
+      const displaySupplierHistory = processedSupplier.filter(p => checkIsArchived(p));
 
       return (
         <div className="min-h-screen font-sans relative pb-20 transition-colors duration-700">
@@ -1189,57 +1107,22 @@
                   </div>
                 ) : (
                   <div className="flex-1 relative flex items-center h-full animate-in fade-in slide-in-from-right-4 duration-300 z-50">
-                    
-                    {isDropdownOpen && <div className="fixed inset-0 z-40" onClick={() => setIsDropdownOpen(false)}></div>}
-
-                    <button 
-                      onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                      className="relative z-50 flex items-center gap-1 sm:gap-1.5 focus:outline-none group max-w-full origin-left"
-                    >
+                    <div className="relative z-50 flex items-center gap-1 sm:gap-1.5 focus:outline-none max-w-full origin-left">
                       <h2 className="text-[15px] sm:text-2xl font-bold text-gray-900 dark:text-white tracking-tight flex items-center gap-1 sm:gap-2 whitespace-nowrap truncate">
                         <span className="truncate">
-                          {currentView === 'aktif' ? (
-                            activeTab === 'online' ? (
-                              <><span className="sm:hidden">Online</span><span className="hidden sm:inline">DARI ONLINE</span></>
-                            ) : (
-                              <><span className="sm:hidden">Supplier</span><span className="hidden sm:inline">DARI SUPPLIER</span></>
-                            )
+                          {activeTab === 'online' ? (
+                            <><span className="sm:hidden">Online</span><span className="hidden sm:inline">DARI ONLINE</span></>
                           ) : (
-                            <><span className="sm:hidden">Riwayat</span><span className="hidden sm:inline">Riwayat Tiba</span></>
+                            <><span className="sm:hidden">Supplier</span><span className="hidden sm:inline">DARI SUPPLIER</span></>
                           )}
                         </span>
                         
                         <span className="bg-gray-200 dark:bg-orange-500/20 text-gray-600 dark:text-orange-400 px-1.5 sm:px-2.5 py-0.5 rounded-full text-[10px] sm:text-sm font-semibold flex items-center gap-1 sm:gap-1.5 shrink-0 dark:border dark:border-orange-500/30">
-                          {activeTab === 'online' ? sourceOnlinePackages.length : sourceSupplierPackages.length}
-                          {activeTab === 'online' && isAutoSyncing && currentView === 'aktif' && <RefreshCw size={12} className="animate-spin text-gray-400 dark:text-orange-400" />}
+                          {activeTab === 'online' ? processedOnline.length : processedSupplier.length}
+                          {activeTab === 'online' && isAutoSyncing && <RefreshCw size={12} className="animate-spin text-gray-400 dark:text-orange-400" />}
                         </span>
-                        <ChevronDown size={16} className={`shrink-0 text-gray-400 dark:text-orange-400 transition-transform duration-300 ${isDropdownOpen ? 'rotate-180' : ''}`} />
                       </h2>
-                    </button>
-                    
-                    <div 
-                      className={`absolute top-[120%] mt-1 sm:mt-2 left-0 w-56 sm:w-60 bg-white dark:bg-[#130d0a] border border-gray-100 dark:border-orange-500/30 rounded-[20px] shadow-2xl py-1.5 z-50 overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] origin-top-left ${
-                        isDropdownOpen 
-                          ? 'opacity-100 translate-y-0 scale-100 pointer-events-auto' 
-                          : 'opacity-0 -translate-y-3 scale-95 pointer-events-none'
-                      }`}
-                    >
-                      <button 
-                        onClick={() => { setCurrentView('aktif'); setIsDropdownOpen(false); }}
-                        className={`w-full text-left px-4 py-3.5 text-sm font-bold flex items-center justify-between transition-colors ${currentView === 'aktif' ? 'text-black dark:text-orange-400 bg-gray-50 dark:bg-orange-500/10' : 'text-gray-600 dark:text-orange-200/70 hover:bg-gray-50 dark:hover:bg-orange-500/5'}`}
-                      >
-                        {activeTab === 'online' ? 'DARI ONLINE' : 'DARI SUPPLIER'}
-                        <span className="bg-gray-100 dark:bg-orange-500/20 py-0.5 px-2.5 rounded-full text-xs text-gray-500 dark:text-orange-400">{activeTab === 'online' ? activeOnline.length : activeSupplier.length}</span>
-                      </button>
-                      <button 
-                        onClick={() => { setCurrentView('riwayat'); setIsDropdownOpen(false); }}
-                        className={`w-full text-left px-4 py-3.5 text-sm font-bold flex items-center justify-between transition-colors ${currentView === 'riwayat' ? 'text-black dark:text-orange-400 bg-gray-50 dark:bg-orange-500/10' : 'text-gray-600 dark:text-orange-200/70 hover:bg-gray-50 dark:hover:bg-orange-500/5'}`}
-                      >
-                        Riwayat Tiba (History)
-                        <span className="bg-gray-100 dark:bg-orange-500/20 py-0.5 px-2.5 rounded-full text-xs text-gray-500 dark:text-orange-400">{activeTab === 'online' ? archivedOnline.length : archivedSupplier.length}</span>
-                      </button>
                     </div>
-
                   </div>
                 )}
 
@@ -1251,13 +1134,13 @@
                         style={{ left: activeTab === 'online' ? '0%' : '50%', width: '50%', borderRadius: 'inherit' }}
                       ></div>
                       <button
-                        onClick={() => { setActiveTab('online'); setIsSearchActive(false); setSearchQuery(''); setCurrentView('aktif'); }}
+                        onClick={() => { setActiveTab('online'); setIsSearchActive(false); setSearchQuery(''); }}
                         className={`relative z-10 w-1/2 h-full flex items-center justify-center text-[11px] sm:text-xs font-bold tracking-widest uppercase transition-colors duration-300 ${activeTab === 'online' ? 'text-black dark:text-black' : 'text-gray-500 hover:text-gray-800 dark:text-orange-200 dark:hover:text-orange-100'}`}
                       >
                         OL
                       </button>
                       <button
-                        onClick={() => { setActiveTab('supplier'); setIsSearchActive(false); setSearchQuery(''); setCurrentView('aktif'); setSortBy('status'); }}
+                        onClick={() => { setActiveTab('supplier'); setIsSearchActive(false); setSearchQuery(''); setSortBy('status'); }}
                         className={`relative z-10 w-1/2 h-full flex items-center justify-center text-[11px] sm:text-xs font-bold tracking-widest uppercase transition-colors duration-300 ${activeTab === 'supplier' ? 'text-black dark:text-black' : 'text-gray-500 hover:text-gray-800 dark:text-orange-200 dark:hover:text-orange-100'}`}
                       >
                         SUP
@@ -1339,22 +1222,18 @@
                 <section className="w-1/2">
                   <div className="max-w-2xl mx-auto px-3 sm:px-8">
                     <div className="space-y-4">
-                      {displayOnlinePackages.length === 0 ? (
+                      {processedOnline.length === 0 ? (
                         <div className="relative text-center py-20 bg-white dark:bg-[#120a07] border-2 border-dashed border-gray-200 dark:border-[#2a1b15] rounded-[32px] overflow-hidden">
                           <div className="relative z-10">
                             <div className="inline-flex items-center justify-center h-16 w-16 rounded-full bg-gray-50 dark:bg-[#1f1008] mb-4">
                               <Package size={28} className="text-gray-300 dark:text-gray-600" />
                             </div>
                             <p className="text-gray-500 dark:text-gray-400 font-semibold mb-2">
-                              {sourceOnlinePackages.length === 0 && allOnlinePackages.length === 0 
+                              {allOnlinePackages.length === 0 
                                 ? "Belum ada paket yang dilacak." 
-                                : sourceOnlinePackages.length === 0 && currentView === 'riwayat'
-                                ? "Belum ada riwayat paket yang tiba."
-                                : sourceOnlinePackages.length === 0 && currentView === 'aktif'
-                                ? "Semua paket Anda sudah tiba!"
                                 : "Paket tidak ditemukan."}
                             </p>
-                            {sourceOnlinePackages.length === 0 && currentView === 'aktif' && allOnlinePackages.length === 0 && (
+                            {allOnlinePackages.length === 0 && (
                               <button onClick={() => setIsModalOpen(true)} className="text-black dark:text-orange-500 font-bold text-sm hover:underline">
                                 Tekan tombol + untuk menambah
                               </button>
@@ -1362,21 +1241,48 @@
                           </div>
                         </div>
                       ) : (
-                        <div>
-                          {displayOnlinePackages.map(pkg => (
-                            <PackageCapsule 
-                              key={pkg.awb} 
-                              pkg={pkg} 
-                              onRemove={requestRemovePackage}
-                              onEdit={requestEditPackage}
-                              onRequestMarkDelivered={requestMarkDelivered}
-                              onUndoDelivered={undoSupplierDelivered}
-                              isExpanded={expandedAwb === pkg.awb}
-                              onToggleExpand={() => setExpandedAwb(expandedAwb === pkg.awb ? null : pkg.awb)}
-                              currentView={currentView}
-                              deliveringAwb={deliveringAwb}
-                            />
-                          ))}
+                        <div className="space-y-8">
+                          {displayOnlineActive.length > 0 && (
+                            <div>
+                              {displayOnlineActive.map(pkg => (
+                                <PackageCapsule 
+                                  key={pkg.awb} 
+                                  pkg={pkg} 
+                                  onRemove={requestRemovePackage}
+                                  onEdit={requestEditPackage}
+                                  onRequestMarkDelivered={requestMarkDelivered}
+                                  onUndoDelivered={undoSupplierDelivered}
+                                  isExpanded={expandedAwb === pkg.awb}
+                                  onToggleExpand={() => setExpandedAwb(expandedAwb === pkg.awb ? null : pkg.awb)}
+                                  deliveringAwb={deliveringAwb}
+                                />
+                              ))}
+                            </div>
+                          )}
+                          
+                          {displayOnlineHistory.length > 0 && (
+                            <div>
+                              <div className="flex items-center gap-3 mb-4 px-1">
+                                <h3 className="text-xs font-bold text-gray-400 dark:text-gray-500 tracking-widest uppercase">
+                                  Riwayat Tiba
+                                </h3>
+                                <div className="flex-1 h-px bg-gray-200 dark:bg-[#2a1b15]"></div>
+                              </div>
+                              {displayOnlineHistory.map(pkg => (
+                                <PackageCapsule 
+                                  key={pkg.awb} 
+                                  pkg={pkg} 
+                                  onRemove={requestRemovePackage}
+                                  onEdit={requestEditPackage}
+                                  onRequestMarkDelivered={requestMarkDelivered}
+                                  onUndoDelivered={undoSupplierDelivered}
+                                  isExpanded={expandedAwb === pkg.awb}
+                                  onToggleExpand={() => setExpandedAwb(expandedAwb === pkg.awb ? null : pkg.awb)}
+                                  deliveringAwb={deliveringAwb}
+                                />
+                              ))}
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
@@ -1386,22 +1292,18 @@
                 <section className="w-1/2">
                   <div className="max-w-2xl mx-auto px-3 sm:px-8">
                     <div className="space-y-4">
-                      {displaySupplierPackages.length === 0 ? (
+                      {processedSupplier.length === 0 ? (
                         <div className="relative text-center py-20 bg-white dark:bg-[#120a07] border-2 border-dashed border-gray-200 dark:border-[#2a1b15] rounded-[32px] overflow-hidden">
                           <div className="relative z-10">
                             <div className="inline-flex items-center justify-center h-16 w-16 rounded-full bg-gray-50 dark:bg-[#1f1008] mb-4">
                               <Truck size={28} className="text-gray-300 dark:text-gray-600" />
                             </div>
                             <p className="text-gray-500 dark:text-gray-400 font-semibold mb-2">
-                              {sourceSupplierPackages.length === 0 && allSupplierPackages.length === 0 
+                              {allSupplierPackages.length === 0 
                                 ? "Belum ada pesanan supplier yang dicatat." 
-                                : sourceSupplierPackages.length === 0 && currentView === 'riwayat'
-                                ? "Belum ada riwayat supplier yang tiba."
-                                : sourceSupplierPackages.length === 0 && currentView === 'aktif'
-                                ? "Semua pesanan supplier Anda sudah tiba!"
                                 : "Pesanan supplier tidak ditemukan."}
                             </p>
-                            {sourceSupplierPackages.length === 0 && currentView === 'aktif' && allSupplierPackages.length === 0 && (
+                            {allSupplierPackages.length === 0 && (
                               <button onClick={() => setIsModalOpen(true)} className="text-black dark:text-orange-500 font-bold text-sm hover:underline">
                                 Tekan tombol + untuk menambah
                               </button>
@@ -1409,21 +1311,48 @@
                           </div>
                         </div>
                       ) : (
-                        <div>
-                          {displaySupplierPackages.map(pkg => (
-                            <PackageCapsule 
-                              key={pkg.awb} 
-                              pkg={pkg} 
-                              onRemove={requestRemovePackage}
-                              onEdit={requestEditPackage}
-                              onRequestMarkDelivered={requestMarkDelivered}
-                              onUndoDelivered={undoSupplierDelivered}
-                              isExpanded={expandedAwb === pkg.awb}
-                              onToggleExpand={() => setExpandedAwb(expandedAwb === pkg.awb ? null : pkg.awb)}
-                              currentView={currentView}
-                              deliveringAwb={deliveringAwb}
-                            />
-                          ))}
+                        <div className="space-y-8">
+                          {displaySupplierActive.length > 0 && (
+                            <div>
+                              {displaySupplierActive.map(pkg => (
+                                <PackageCapsule 
+                                  key={pkg.awb} 
+                                  pkg={pkg} 
+                                  onRemove={requestRemovePackage}
+                                  onEdit={requestEditPackage}
+                                  onRequestMarkDelivered={requestMarkDelivered}
+                                  onUndoDelivered={undoSupplierDelivered}
+                                  isExpanded={expandedAwb === pkg.awb}
+                                  onToggleExpand={() => setExpandedAwb(expandedAwb === pkg.awb ? null : pkg.awb)}
+                                  deliveringAwb={deliveringAwb}
+                                />
+                              ))}
+                            </div>
+                          )}
+                          
+                          {displaySupplierHistory.length > 0 && (
+                            <div>
+                              <div className="flex items-center gap-3 mb-4 px-1">
+                                <h3 className="text-xs font-bold text-gray-400 dark:text-gray-500 tracking-widest uppercase">
+                                  Riwayat Tiba
+                                </h3>
+                                <div className="flex-1 h-px bg-gray-200 dark:bg-[#2a1b15]"></div>
+                              </div>
+                              {displaySupplierHistory.map(pkg => (
+                                <PackageCapsule 
+                                  key={pkg.awb} 
+                                  pkg={pkg} 
+                                  onRemove={requestRemovePackage}
+                                  onEdit={requestEditPackage}
+                                  onRequestMarkDelivered={requestMarkDelivered}
+                                  onUndoDelivered={undoSupplierDelivered}
+                                  isExpanded={expandedAwb === pkg.awb}
+                                  onToggleExpand={() => setExpandedAwb(expandedAwb === pkg.awb ? null : pkg.awb)}
+                                  deliveringAwb={deliveringAwb}
+                                />
+                              ))}
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
@@ -1435,8 +1364,17 @@
           </main>
           
           <footer className="mt-16 mb-8 flex flex-col items-center justify-center gap-10">
-
           </footer>
+
+          <button
+            onClick={scrollToTop}
+            className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-[90] p-3 rounded-full bg-black dark:bg-gradient-to-r dark:from-orange-500 dark:to-yellow-500 text-white dark:text-black shadow-xl transition-all duration-300 transform hover:scale-110 active:scale-95 ${
+              showScrollTop ? 'translate-y-0 opacity-100' : 'translate-y-16 opacity-0 pointer-events-none'
+            }`}
+            title="Kembali ke Atas"
+          >
+            <ArrowUp size={24} />
+          </button>
 
           {isModalOpen && (
             <div 
@@ -1521,7 +1459,7 @@
                           type="submit"
                           disabled={isLoading || !user}
                           className={`w-full py-4 rounded-2xl font-bold transition-transform active:scale-[0.98] shadow-lg ${
-                            isLoading || !user ? 'bg-gray-400 dark:bg-orange-900/50 text-white dark:text-orange-200/50 shadow-none' : 'bg-black dark:bg-gradient-to-r dark:from-orange-500 dark:to-yellow-500 dark:text-black hover:bg-gray-800 dark:hover:opacity-90 hover:shadow-xl'
+                            isLoading || !user ? 'bg-gray-400 dark:bg-orange-900/50 text-white dark:text-orange-200/50 shadow-none' : 'bg-black text-white dark:bg-gradient-to-r dark:from-orange-500 dark:to-yellow-500 dark:text-black hover:bg-gray-800 dark:hover:opacity-90 hover:shadow-xl'
                           } flex items-center justify-center gap-2 text-base`}
                         >
                           {isLoading ? (
@@ -1620,7 +1558,7 @@
                           type="submit"
                           disabled={isLoading || !user}
                           className={`w-full py-4 rounded-2xl font-bold transition-transform active:scale-[0.98] shadow-lg ${
-                            isLoading || !user ? 'bg-gray-400 dark:bg-orange-900/50 text-white dark:text-orange-200/50 shadow-none' : 'bg-black dark:bg-gradient-to-r dark:from-orange-500 dark:to-yellow-500 dark:text-black hover:bg-gray-800 dark:hover:opacity-90 hover:shadow-xl'
+                            isLoading || !user ? 'bg-gray-400 dark:bg-orange-900/50 text-white dark:text-orange-200/50 shadow-none' : 'bg-black text-white dark:bg-gradient-to-r dark:from-orange-500 dark:to-yellow-500 dark:text-black hover:bg-gray-800 dark:hover:opacity-90 hover:shadow-xl'
                           } flex items-center justify-center gap-2 text-base`}
                         >
                           {isLoading ? (
