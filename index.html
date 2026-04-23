@@ -929,6 +929,20 @@
         await performTracking(inputValue.trim().toUpperCase(), selectedCourier, itemName.trim(), 'online');
       };
 
+      const handleAwbChange = (e) => {
+        const val = e.target.value.toUpperCase();
+        setInputValue(val);
+        
+        // Auto-detect courier based on AWB prefix
+        if (val.startsWith('SPX')) setSelectedCourier('spx');
+        else if (val.startsWith('JP') || val.startsWith('JX') || val.startsWith('JD') || val.startsWith('JT') || val.startsWith('JTR')) setSelectedCourier('jnt');
+        else if (val.startsWith('ID')) setSelectedCourier('idexpress');
+        else if (val.startsWith('NL')) setSelectedCourier('ninja');
+        else if (val.startsWith('200')) setSelectedCourier('jnt_cargo');
+        else if (val.startsWith('100') && val.length >= 3) setSelectedCourier('anteraja');
+        else if (val.startsWith('00') && val.length >= 3) setSelectedCourier('sicepat');
+      };
+
       const handleAddSupplierNote = async (e) => {
         e.preventDefault();
         if (!user || !db) return;
@@ -1407,7 +1421,7 @@
                             <input
                               type="text"
                               value={inputValue}
-                              onChange={(e) => setInputValue(e.target.value)}
+                              onChange={handleAwbChange}
                               placeholder="Contoh: JP8391283..."
                               className="w-full pl-12 pr-4 py-4 bg-gray-50 dark:bg-[#0a0503] border border-gray-200 dark:border-[#26150c] rounded-2xl focus:bg-white dark:focus:bg-[#1a1411] focus:ring-2 focus:ring-black dark:focus:ring-orange-500 focus:border-black dark:focus:border-transparent outline-none text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 font-mono font-medium text-sm sm:text-base"
                               required
