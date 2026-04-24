@@ -833,7 +833,7 @@
           const d = String(now.getDate()).padStart(2, '0');
           const dateString = `${y}-${m}-${d}`;
           
-          let globalSyncState = { date: dateString, morningDone: false, afternoonDone: false };
+          let globalSyncState = { date: dateString, syncDone: false };
           let shouldSync = false;
 
           try {
@@ -842,17 +842,19 @@
             
             if (syncSnap.exists()) {
               const data = syncSnap.data();
-              if (data.date === dateString) globalSyncState = data;
+              if (data.date === dateString) {
+                globalSyncState = data;
+                // Handle transition from old state structure
+                if (globalSyncState.syncDone === undefined) {
+                  globalSyncState.syncDone = globalSyncState.morningDone || globalSyncState.afternoonDone || false;
+                }
+              }
             }
 
             if (day !== 0) {
-              if (hour >= 9 && hour < 15 && !globalSyncState.morningDone) {
+              if (hour >= 13 && !globalSyncState.syncDone) {
                 shouldSync = true;
-                globalSyncState.morningDone = true;
-              } else if (hour >= 15 && !globalSyncState.afternoonDone) {
-                shouldSync = true;
-                globalSyncState.morningDone = true;
-                globalSyncState.afternoonDone = true;
+                globalSyncState.syncDone = true;
               }
             }
 
@@ -884,13 +886,13 @@
 
           if (day === 0) {
             nextTarget.setDate(now.getDate() + 1);
-            nextTarget.setHours(9);
+            nextTarget.setHours(13);
           } else {
-            if (hour < 9) nextTarget.setHours(9);
-            else if (hour >= 9 && hour < 15) nextTarget.setHours(15);
-            else {
+            if (hour < 13) {
+              nextTarget.setHours(13);
+            } else {
               nextTarget.setDate(now.getDate() + 1);
-              nextTarget.setHours(9);
+              nextTarget.setHours(13);
               if (nextTarget.getDay() === 0) nextTarget.setDate(nextTarget.getDate() + 1);
             }
           }
