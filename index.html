@@ -124,7 +124,7 @@
       Package, Truck, CheckCircle, Clock, RefreshCw, Trash2, 
       Search, AlertCircle, MapPin, X, Plus, Navigation, Filter, Moon, Sun, Zap, ArrowRight,
       Download, ChevronDown, Edit2, Calendar, User, RotateCcw, FileText, Hourglass, HelpCircle,
-      BellRing, BellOff, ArrowUp, ExternalLink, Copy
+      BellRing, BellOff, ArrowUp
     } from 'https://esm.sh/lucide-react@0.263.1';
     
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
@@ -153,6 +153,7 @@
       console.error("Gagal inisialisasi Firebase", e);
     }
 
+    // Direct paths to your original collection
     const getCollectionRef = () => collection(db, 'tracked_packages');
     const getDocRef = (docId) => doc(db, 'tracked_packages', docId);
 
@@ -253,7 +254,7 @@
     };
 
     // ==========================================
-    // 2. CONSTANTS & HELPER FUNCTIONS
+    // 2. BINDERBYTE API (TRACKING)
     // ==========================================
     const COURIERS = [
       { id: 'jnt', name: 'J&T Express' },
@@ -265,26 +266,80 @@
       { id: 'ninja', name: 'Ninja Xpress' }
     ];
 
-    const getCourierUrl = (courierId, awb) => {
-      switch (courierId) {
-        case 'spx': return `https://spx.co.id/track?${awb}`; // UPDATE Sesuai permintaan
-        case 'jnt': return `https://jet.co.id/track?waybill=${awb}`;
-        case 'jnt_cargo': return `https://jtcargo.id/network/queryOrder?billCodes=${awb}`;
-        case 'sicepat': return `https://www.sicepat.com/checkAwb/${awb}`;
-        case 'anteraja': return `https://anteraja.id/tracking?resi=${awb}`;
-        case 'ninja': return `https://www.ninjaxpress.co/id-id/tracking?tracking_id=${awb}`;
-        case 'idexpress': return `https://idexpress.com/`;
-        default: return `https://cekresi.com/?noresi=${awb}`;
+    const BINDERBYTE_API_KEY = '92bb0cda99dae0d728751a6f453b0670e0810994b9d09bb248da73a98d9cd38f';
+
+    const fetchTrackingFromAPI = async (awb, courier, itemName = '') => {
+      if (awb.length < 5) throw new Error("Nomor resi tidak valid. Minimal 5 karakter.");
+
+      try {
+        const targetUrl = `https://api.binderbyte.com/v1/track?api_key=${BINDERBYTE_API_KEY}&courier=${courier}&awb=${awb}&_t=${Date.now()}`;
+        
+        const urlsToTry = [
+          targetUrl,
+          `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`,
+          `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`,
+          `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`
+        ];
+
+        let result = null;
+
+        for (const url of urlsToTry) {
+          try {
+            const res = await fetch(url);
+            const data = await res.json();
+            if (data && typeof data.status !== 'undefined') {
+              result = data;
+              break; 
+            }
+          } catch (proxyErr) {}
+        }
+        
+        if (!result) throw new Error("Gagal terhubung ke server. Pastikan internet stabil.");
+        if (result.status !== 200) throw new Error(result.message || "Gagal melacak paket. Periksa kembali resi dan kurir Anda.");
+
+        const data = result.data;
+        let mappedStatus = 'TRANSIT';
+        const rawStatus = (data.summary.status || '').toUpperCase();
+        if (rawStatus.includes('DELIVERED') || rawStatus.includes('SUCCESS')) mappedStatus = 'DELIVERED';
+        else if (rawStatus.includes('DELIVERING') || rawStatus.includes('WITH DELIVERY COURIER')) mappedStatus = 'DELIVERING';
+        else if (rawStatus.includes('PICKUP')) mappedStatus = 'PICKUP';
+        else if (rawStatus === '') mappedStatus = 'PENDING';
+
+        const timeline = (data.history || []).map((h, i) => ({
+          id: i.toString() + h.date,
+          description: h.desc,
+          location: h.location || '',
+          timestamp: h.date,
+        }));
+
+        const rawEta = data.summary.eta || (data.detail && data.detail.eta) || '';
+
+        return {
+          awb: data.summary.awb,
+          courier,
+          itemName,
+          eta: rawEta,
+          status: mappedStatus,
+          timeline,
+          addedAt: new Date().toISOString(),
+          lastUpdated: new Date().toISOString()
+        };
+
+      } catch (err) {
+        throw new Error(err.message || "Terjadi kesalahan jaringan.");
       }
     };
 
     // ==========================================
-    // 3. UI COMPONENTS
+    // 3. UI COMPONENTS & HELPERS
     // ==========================================
     const getStatusConfig = (status) => {
       const configs = {
         'DELIVERED': { color: 'bg-black dark:bg-orange-500 text-white dark:text-black border-black dark:border-orange-400 dark:shadow-[0_0_12px_rgba(249,115,22,0.6)]', icon: CheckCircle, label: 'Tiba' },
-        'PENDING': { color: 'bg-blue-600 dark:bg-blue-600/30 text-white dark:text-blue-200 border-blue-600 dark:border-blue-500/50', icon: Navigation, label: 'Dilacak' },
+        'DELIVERING': { color: 'bg-gray-800 dark:bg-orange-600 text-white dark:text-white border-gray-800 dark:border-orange-500', icon: Navigation, label: 'Out for delivery' },
+        'TRANSIT': { color: 'bg-gray-600 dark:bg-orange-500/30 text-white dark:text-orange-100 border-gray-600 dark:border-orange-500/50', icon: Truck, label: 'Transit' },
+        'PICKUP': { color: 'bg-gray-200 dark:bg-orange-500/20 text-gray-800 dark:text-orange-200 border-gray-300 dark:border-orange-500/40', icon: Package, label: 'Picked up' },
+        'PENDING': { color: 'bg-white dark:bg-[#1f140f] text-gray-600 dark:text-gray-400 border-gray-200 dark:border-[#382015]', icon: Clock, label: 'Pending' },
       };
       return configs[status] || configs['PENDING'];
     };
@@ -361,7 +416,7 @@
 
       if (diffDays === 0) return 'Hari ini';
       if (diffDays === 1) return 'Besok';
-      if (diffDays > 1) return `${diffDays} hr lagi`;
+      if (diffDays > 1) return `${diffDays} hari lagi`;
       return `Telat ${Math.abs(diffDays)} hr`;
     };
 
@@ -378,16 +433,33 @@
     };
 
     const getPackageCreationDate = (pkg) => {
-      return new Date(pkg.addedAt).getTime();
+      const dateString = pkg.timeline && pkg.timeline.length > 0 
+        ? pkg.timeline[pkg.timeline.length - 1].timestamp 
+        : pkg.addedAt;
+      const parsedDate = new Date((dateString || '').replace(' ', 'T'));
+      return isNaN(parsedDate.getTime()) ? new Date(pkg.addedAt).getTime() : parsedDate.getTime();
     };
 
-    const PackageCapsule = ({ pkg, onRemove, onEdit, onRequestMarkDelivered, onUndoDelivered, deliveringAwb }) => {
+    const formatEtaBadge = (etaStr) => {
+      if (!etaStr) return null;
+      const d = new Date(etaStr.replace(' ', 'T'));
+      if (!isNaN(d.getTime())) {
+        return new Intl.DateTimeFormat('id-ID', { day: 'numeric', month: 'short' }).format(d);
+      }
+      return etaStr; 
+    };
+
+    const PackageCapsule = ({ pkg, onRemove, onEdit, onRequestMarkDelivered, onUndoDelivered, isExpanded, onToggleExpand, deliveringAwb }) => {
       if (!pkg) return null;
       
       const isSupplier = pkg.type === 'supplier';
+      const latestEvent = pkg.timeline?.[0];
       const courierAvatar = getCourierStyle(pkg.courier);
       const courierNameFull = COURIERS.find(c => c.id === pkg.courier)?.name || pkg.courier;
-      const firstEventDate = pkg.addedAt;
+
+      const firstEventDate = pkg.timeline && pkg.timeline.length > 0 
+        ? pkg.timeline[pkg.timeline.length - 1].timestamp 
+        : pkg.addedAt;
 
       const formatDate = (dateString) => {
         if (!dateString) return '-';
@@ -398,6 +470,7 @@
         }).format(d);
       };
 
+      const etaDisplay = formatEtaBadge(pkg.eta);
       const supplierRelativeText = isSupplier ? getSupplierRelativeText(pkg.eta) : '';
       const isFlying = deliveringAwb === pkg.awb;
 
@@ -413,7 +486,7 @@
         const diffTime = etaDate - today;
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-        if (diffDays <= 0) return { icon: Truck, animate: "animate-truck-drive", showWind: true };
+        if (diffDays === 0) return { icon: Truck, animate: "animate-truck-drive", showWind: true };
         if (diffDays === 1) return { icon: Package, animate: "animate-package-jitter" };
         return { icon: Hourglass, animate: "animate-hourglass-flip" };
       };
@@ -422,39 +495,17 @@
       const IconComp = supplierIconData.icon;
 
       const displayTitle = isSupplier ? pkg.itemName : (pkg.itemName ? pkg.itemName : `Paket ${courierAvatar.label}`);
-      const displaySubtitle = isSupplier ? pkg.supplierName : `Resi: ${pkg.awb}`;
-      
-      const trackingUrl = !isSupplier ? getCourierUrl(pkg.courier, pkg.awb) : null;
-
-      const handleCapsuleClick = () => {
-        if (!isSupplier && pkg.status !== 'DELIVERED') {
-          // Salin no resi otomatis menggunakan cara aman untuk iframe (document.execCommand)
-          try {
-            const textArea = document.createElement("textarea");
-            textArea.value = pkg.awb;
-            textArea.style.position = "fixed";
-            textArea.style.left = "-9999px";
-            document.body.appendChild(textArea);
-            textArea.focus();
-            textArea.select();
-            document.execCommand('copy');
-            document.body.removeChild(textArea);
-          } catch(e) {
-            console.error("Gagal menyalin resi ke clipboard", e);
-          }
-          window.open(trackingUrl, '_blank');
-        }
-      };
+      const displaySubtitle = isSupplier ? pkg.supplierName : (latestEvent?.description || 'Status belum diperbarui');
 
       return (
         <div className={`group relative bg-white dark:bg-[#120a07] rounded-[24px] shadow-sm border border-gray-100 dark:border-[#2a1b15] overflow-hidden transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${isFlying ? 'opacity-0 -translate-y-24 -translate-x-16 scale-50 pointer-events-none z-50' : 'mb-2 dark:hover:border-orange-500/50 dark:hover:shadow-[0_0_25px_rgba(249,115,22,0.15)]'}`}>
           <div className="relative z-10">
             <div 
-              className={`px-3 py-2.5 sm:px-4 sm:py-3 flex flex-row items-stretch justify-between gap-3 ${!isSupplier && pkg.status !== 'DELIVERED' ? 'cursor-pointer hover:bg-gray-50/50 dark:hover:bg-orange-500/5' : ''}`}
-              onClick={handleCapsuleClick}
+              className={`px-3 py-2.5 sm:px-4 sm:py-3 flex flex-row items-stretch justify-between gap-3 ${!isSupplier ? 'cursor-pointer' : ''}`}
+              onClick={!isSupplier ? onToggleExpand : undefined}
             >
               <div className={`flex flex-col items-stretch justify-center gap-1 shrink-0 ${isSupplier ? 'w-[88px] sm:w-[100px]' : 'w-[60px] sm:w-[68px]'}`}>
-                {pkg.status === 'DELIVERED' ? (
+                {isSupplier && pkg.status === 'DELIVERED' ? (
                   <div className="flex items-center justify-center w-full h-[58px] sm:h-[64px] bg-black text-white rounded-lg font-black text-[11px] sm:text-sm uppercase tracking-widest shadow-sm dark:bg-white dark:text-black">
                     <CheckCircle size={14} className="mr-1.5 shrink-0" strokeWidth={3} />
                     TIBA
@@ -464,21 +515,21 @@
                     <div className={isSupplier ? `w-full py-1.5 px-1.5 rounded-lg bg-gray-800 dark:bg-[#1a120e] border border-gray-700 dark:border-[#381c0e] text-white flex items-center justify-center font-black text-[10px] sm:text-[11px] shadow-sm tracking-tight leading-none gap-1.5 overflow-hidden` : courierAvatar.className}>
                       {isSupplier ? (
                         <div className="relative flex items-center gap-1.5">
-                          {supplierIconData.showWind && (
+                          {supplierIconData.showWind && pkg.status !== 'DELIVERED' && (
                             <div className="absolute right-full mr-0.5 flex flex-col gap-[2px]">
                               <div className="w-1.5 h-[1.5px] bg-white/40 rounded-full animate-wind-1"></div>
                               <div className="w-2.5 h-[1.5px] bg-white/60 rounded-full animate-wind-2"></div>
                               <div className="w-2 h-[1.5px] bg-white/40 rounded-full animate-wind-3"></div>
                             </div>
                           )}
-                          <IconComp size={14} strokeWidth={2.5} className={`shrink-0 ${supplierIconData.animate}`} />
+                          <IconComp size={14} strokeWidth={2.5} className={`shrink-0 ${pkg.status !== 'DELIVERED' ? supplierIconData.animate : ""}`} />
                           <span className="truncate pt-[1px]">{supplierRelativeText}</span>
                         </div>
                       ) : (
-                        <span className="truncate">{courierAvatar.label}</span>
+                        <span className="truncate">{etaDisplay ? etaDisplay : courierAvatar.label}</span>
                       )}
                     </div>
-                    {isSupplier ? (
+                    {isSupplier && pkg.status !== 'DELIVERED' ? (
                       <SupplierEtaBadge eta={pkg.eta} />
                     ) : (
                       <StatusBadge status={pkg.status} />
@@ -500,19 +551,16 @@
                   </span>
                 )}
                 
-                <h3 className="font-bold text-gray-900 dark:text-white text-sm sm:text-base leading-tight break-words whitespace-normal mb-1 tracking-tight group-hover:dark:text-orange-50 transition-colors flex items-center gap-2">
+                <h3 className="font-bold text-gray-900 dark:text-white text-sm sm:text-base leading-tight break-words whitespace-normal mb-1 tracking-tight group-hover:dark:text-orange-50 transition-colors">
                   {displayTitle}
-                  {!isSupplier && pkg.status !== 'DELIVERED' && (
-                    <ExternalLink size={14} className="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
-                  )}
                 </h3>
-                <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2 leading-snug font-medium flex items-center gap-1.5">
+                <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2 leading-snug font-medium">
                   {displaySubtitle}
                 </p>
               </div>
 
               <div className="flex flex-col items-center justify-center border-l border-gray-100 dark:border-orange-500/20 pl-2 sm:pl-3 shrink-0 gap-1 sm:gap-1.5 group-hover:dark:border-orange-500/40 transition-colors">
-                {pkg.status !== 'DELIVERED' && (
+                {isSupplier && pkg.status !== 'DELIVERED' && (
                   <button 
                     onClick={(e) => { e.stopPropagation(); onRequestMarkDelivered(pkg); }}
                     className="p-1.5 sm:p-2 rounded-xl text-gray-900 dark:text-orange-400 dark:bg-orange-500/10 hover:text-white dark:hover:text-white hover:bg-green-500 dark:hover:bg-green-500 transition-colors"
@@ -522,7 +570,7 @@
                   </button>
                 )}
                 
-                {pkg.status === 'DELIVERED' && (
+                {isSupplier && pkg.status === 'DELIVERED' && (
                   <button 
                     onClick={(e) => { e.stopPropagation(); onUndoDelivered(pkg); }}
                     className="p-1.5 sm:p-2 rounded-xl text-gray-900 dark:text-orange-400 dark:bg-orange-500/10 hover:text-white dark:hover:text-white hover:bg-orange-500 dark:hover:bg-orange-500 transition-colors"
@@ -541,7 +589,7 @@
                     <Edit2 size={16} />
                   </button>
                 )}
-                {pkg.status === 'DELIVERED' && (
+                {!(isSupplier && pkg.status !== 'DELIVERED') && (
                   <button 
                     onClick={(e) => { e.stopPropagation(); onRemove(pkg); }}
                     className="p-1.5 sm:p-2 rounded-xl text-gray-900 dark:text-orange-400 dark:bg-orange-500/10 hover:text-white dark:hover:text-white hover:bg-red-500 dark:hover:bg-red-600 transition-colors"
@@ -552,6 +600,46 @@
                 )}
               </div>
             </div>
+
+            {isExpanded && !isSupplier && (
+              <div className="bg-gray-50 dark:bg-[#0a0503] p-4 sm:p-5 border-t border-gray-100 dark:border-[#2a1b15]">
+                <div className="mb-5 bg-white dark:bg-[#120a07] p-3 rounded-xl border border-gray-200 dark:border-[#2a1b15] flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                  <div>
+                    <p className="text-xs text-gray-500 font-semibold uppercase tracking-wider mb-0.5">Nomor Resi</p>
+                    <p className="font-mono text-sm font-semibold text-gray-900 dark:text-white">{pkg.awb}</p>
+                  </div>
+                  <div className="sm:text-right mt-2 sm:mt-0">
+                    <p className="text-xs text-gray-500 font-semibold uppercase tracking-wider mb-0.5">Kurir</p>
+                    <p className="text-sm font-semibold text-gray-900 dark:text-white">{courierNameFull}</p>
+                  </div>
+                </div>
+
+                <h4 className="text-xs font-bold text-gray-400 dark:text-gray-600 mb-4 tracking-wider uppercase">Riwayat Perjalanan</h4>
+                <div className="relative border-l-2 border-gray-200 dark:border-[#2a1b15] ml-3 space-y-6 pb-2">
+                  {(pkg.timeline || []).map((event, index) => (
+                    <div key={event.id || index} className="relative pl-6">
+                      <div className={`absolute -left-[9px] top-1 h-4 w-4 rounded-full border-2 ${index === 0 ? 'bg-black dark:bg-orange-500 ring-4 ring-gray-200 dark:ring-[#2a1b15] border-white dark:border-[#120a07] dark:shadow-[0_0_10px_rgba(249,115,22,0.5)]' : 'bg-gray-300 dark:bg-[#2a1b15] border-gray-50 dark:border-[#0a0503]'}`}></div>
+                      
+                      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-1.5">
+                        <div className="pr-4">
+                          <p className={`text-sm leading-relaxed ${index === 0 ? 'font-semibold text-gray-900 dark:text-orange-50' : 'text-gray-600 dark:text-gray-400 font-medium'}`}>
+                            {event.description}
+                          </p>
+                          {event.location && (
+                            <p className="text-xs font-semibold text-black dark:text-gray-500 mt-1 flex items-center gap-1">
+                              <MapPin size={12} /> {event.location}
+                            </p>
+                          )}
+                        </div>
+                        <span className="text-[11px] font-medium text-gray-400 dark:text-gray-600 whitespace-nowrap mt-1 sm:mt-0">
+                          {formatDate(event.timestamp)}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       );
@@ -584,6 +672,7 @@
       const [deliveringAwb, setDeliveringAwb] = useState(null);
 
       const [isSearchActive, setIsSearchActive] = useState(false);
+      const [expandedAwb, setExpandedAwb] = useState(null);
       
       const [editingPackage, setEditingPackage] = useState(null);
       const [editItemName, setEditItemName] = useState('');
@@ -591,6 +680,7 @@
       const [editSupplierSj, setEditSupplierSj] = useState('');
       const [editSupplierEta, setEditSupplierEta] = useState('');
 
+      const [isAutoSyncing, setIsAutoSyncing] = useState(false);
       const [activeTab, setActiveTab] = useState('online');
 
       const [isScrolled, setIsScrolled] = useState(false);
@@ -611,10 +701,9 @@
           setIsScrolled(window.scrollY > 80);
           setShowScrollTop(window.scrollY > 300);
         };
-        
-        window.addEventListener('scroll', handleScroll, { passive: true });
+        window.addEventListener('scroll', handleScroll);
         return () => window.removeEventListener('scroll', handleScroll);
-      }, [activeTab]);
+      }, []);
 
       const scrollToTop = () => {
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -638,7 +727,7 @@
         try {
           localStorage.setItem('theme', theme);
         } catch (e) {
-          // Ignore storage errors
+          // Ignore storage errors in sandboxed environments
         }
       }, [theme]);
 
@@ -681,7 +770,7 @@
           setNotifPermission(permission);
           if (permission === 'granted' && 'serviceWorker' in navigator) {
             navigator.serviceWorker.ready.then(reg => {
-              reg.showNotification("Notifikasi Aktif!", { body: "Anda akan menerima pemberitahuan saat paket ditandai tiba.", icon: './icon-192.png' });
+              reg.showNotification("Notifikasi Aktif!", { body: "Anda akan menerima pemberitahuan saat paket tiba.", icon: './icon-192.png' });
             });
           }
         });
@@ -726,34 +815,120 @@
         packagesRef.current = packages;
       }, [packages]);
 
-      const savePackageOnline = async (awb, courier, name) => {
+      // Auto-Sync Background
+      useEffect(() => {
+        if (!user || !db) return;
+
+        let isMounted = true;
+        let timeoutId;
+
+        const checkAndRunAutoSync = async () => {
+          const pkgs = packagesRef.current;
+          const now = new Date();
+          const day = now.getDay();
+          const hour = now.getHours();
+
+          const y = now.getFullYear();
+          const m = String(now.getMonth() + 1).padStart(2, '0');
+          const d = String(now.getDate()).padStart(2, '0');
+          const dateString = `${y}-${m}-${d}`;
+          
+          let globalSyncState = { date: dateString, syncDone: false };
+          let shouldSync = false;
+
+          try {
+            const syncDocRef = getDocRef('_system_sync_status_');
+            const syncSnap = await getDoc(syncDocRef);
+            
+            if (syncSnap.exists()) {
+              const data = syncSnap.data();
+              if (data.date === dateString) {
+                globalSyncState = data;
+                // Handle transition from old state structure
+                if (globalSyncState.syncDone === undefined) {
+                  globalSyncState.syncDone = globalSyncState.morningDone || globalSyncState.afternoonDone || false;
+                }
+              }
+            }
+
+            if (day !== 0) {
+              if (hour >= 13 && !globalSyncState.syncDone) {
+                shouldSync = true;
+                globalSyncState.syncDone = true;
+              }
+            }
+
+            if (shouldSync && pkgs.length > 0) {
+              await setDoc(syncDocRef, globalSyncState);
+              if (isMounted) setIsAutoSyncing(true);
+              
+              for (const pkg of pkgs) {
+                if (!isMounted) break;
+                if (pkg.status === 'DELIVERED' || pkg.type === 'supplier') continue;
+                
+                try {
+                  const updatedData = await fetchTrackingFromAPI(pkg.awb, pkg.courier, pkg.itemName);
+                  updatedData.type = pkg.type || 'online'; 
+                  await setDoc(getDocRef(pkg.awb), updatedData, { merge: true });
+                } catch (err) {
+                  console.error(`Auto-sync gagal untuk ${pkg.awb}`, err);
+                }
+                await new Promise(resolve => setTimeout(resolve, 1500));
+              }
+              if (isMounted) setIsAutoSyncing(false);
+            }
+          } catch (e) { console.error("Gagal membaca atau menulis status sync", e); }
+
+          if (!isMounted) return;
+
+          const nextTarget = new Date(now);
+          nextTarget.setMinutes(0, 0, 0);
+
+          if (day === 0) {
+            nextTarget.setDate(now.getDate() + 1);
+            nextTarget.setHours(13);
+          } else {
+            if (hour < 13) {
+              nextTarget.setHours(13);
+            } else {
+              nextTarget.setDate(now.getDate() + 1);
+              nextTarget.setHours(13);
+              if (nextTarget.getDay() === 0) nextTarget.setDate(nextTarget.getDate() + 1);
+            }
+          }
+
+          const delay = nextTarget.getTime() - new Date().getTime();
+          timeoutId = setTimeout(checkAndRunAutoSync, Math.max(delay, 1000));
+        };
+
+        const initTimeout = setTimeout(checkAndRunAutoSync, 3000);
+        return () => {
+          isMounted = false;
+          clearTimeout(initTimeout);
+          clearTimeout(timeoutId);
+        };
+      }, [user, db]);
+
+      const performTracking = async (awbToTrack, courierToTrack, itemNameToTrack, packageType = 'online') => {
         setIsLoading(true);
         setError('');
         try {
-          const newPkg = {
-            awb: awb,
-            courier: courier,
-            itemName: name,
-            type: 'online',
-            status: 'PENDING',
-            addedAt: new Date().toISOString(),
-            lastUpdated: new Date().toISOString()
-          };
-          await setDoc(getDocRef(newPkg.awb), newPkg);
+          const newData = await fetchTrackingFromAPI(awbToTrack, courierToTrack, itemNameToTrack);
+          newData.type = packageType;
+          await setDoc(getDocRef(newData.awb), newData);
           setInputValue(''); setItemName(''); setIsModalOpen(false);
-        } catch (err) { setError('Gagal menyimpan resi. Silakan coba lagi.'); }
+        } catch (err) { setError(err.message || 'Gagal melacak resi. Silakan coba lagi.'); }
         finally { setIsLoading(false); }
       };
 
       const handleAddPackage = async (e) => {
         e.preventDefault();
         if (!inputValue.trim() || !user || !db) return;
-        const upperAwb = inputValue.trim().toUpperCase();
-        if (packages.some(p => p.awb.toUpperCase() === upperAwb)) {
+        if (packages.some(p => p.awb.toLowerCase() === inputValue.toLowerCase())) {
           setError('Nomor resi ini sudah ada di daftar pantauan Anda.');
           return;
         }
-        await savePackageOnline(upperAwb, selectedCourier, itemName.trim());
+        await performTracking(inputValue.trim().toUpperCase(), selectedCourier, itemName.trim(), 'online');
       };
 
       const handleAwbChange = (e) => {
@@ -781,6 +956,7 @@
             awb: newId, courier: 'MANUAL',
             supplierName: supplierName.trim(), sj: supplierSj.trim(), itemName: supplierNote.trim(),
             eta: supplierEta || '', type: 'supplier', status: 'PENDING',
+            timeline: [{ id: Date.now().toString(), description: 'Catatan Supplier Dibuat', timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19) }],
             addedAt: new Date().toISOString(), lastUpdated: new Date().toISOString()
           };
           
@@ -847,7 +1023,8 @@
 
       const checkIsArchived = (pkg) => {
         if (pkg.status !== 'DELIVERED') return false;
-        const dateStr = pkg.lastUpdated;
+        if (pkg.type === 'supplier') return true;
+        const dateStr = (pkg.timeline && pkg.timeline.length > 0) ? pkg.timeline[0].timestamp : pkg.lastUpdated;
         const d = new Date((dateStr || '').replace(' ', 'T'));
         if (isNaN(d.getTime())) return false;
         return (new Date().getTime() - d.getTime()) >= (24 * 60 * 60 * 1000); 
@@ -882,7 +1059,7 @@
               };
               return getSupplierUrgencyValue(a) - getSupplierUrgencyValue(b);
             } else {
-              const onlineStatusOrder = { 'PENDING': 1, 'DELIVERED': 2 };
+              const onlineStatusOrder = { 'DELIVERING': 1, 'TRANSIT': 2, 'PICKUP': 3, 'PENDING': 4, 'DELIVERED': 5 };
               return (onlineStatusOrder[a.status] || 99) - (onlineStatusOrder[b.status] || 99);
             }
           }
@@ -891,12 +1068,12 @@
       };
 
       const processedOnline = filterAndSort(allOnlinePackages);
-      const displayOnlineActive = processedOnline.filter(p => p.status !== 'DELIVERED');
-      const displayOnlineHistory = processedOnline.filter(p => p.status === 'DELIVERED');
+      const displayOnlineActive = processedOnline.filter(p => !checkIsArchived(p));
+      const displayOnlineHistory = processedOnline.filter(p => checkIsArchived(p));
 
       const processedSupplier = filterAndSort(allSupplierPackages);
-      const displaySupplierActive = processedSupplier.filter(p => p.status !== 'DELIVERED');
-      const displaySupplierHistory = processedSupplier.filter(p => p.status === 'DELIVERED');
+      const displaySupplierActive = processedSupplier.filter(p => !checkIsArchived(p));
+      const displaySupplierHistory = processedSupplier.filter(p => checkIsArchived(p));
 
       return (
         <div className="min-h-screen font-sans relative pb-20 transition-colors duration-700">
@@ -919,8 +1096,8 @@
             </div>
           </header>
 
-          <div className={`sticky top-0 z-[100] w-full transition-all duration-300 ${isScrolled ? 'bg-[#F8FAFC]/95 dark:bg-[#080302]/95 backdrop-blur-xl border-b border-gray-200 dark:border-[#2a1b15] shadow-sm' : 'bg-transparent border-b border-transparent'}`}>
-            <div className="h-[64px] max-w-2xl mx-auto px-2 sm:px-8 relative flex flex-col justify-center">
+          <div className={`sticky top-0 z-[100] w-full transition-all duration-300 ${isScrolled ? 'bg-[#F8FAFC]/80 dark:bg-[#080302]/80 backdrop-blur-xl border-b border-gray-200 dark:border-[#2a1b15] py-2' : 'bg-transparent pt-1 pb-3'}`}>
+            <div className="max-w-2xl mx-auto px-2 sm:px-8 relative">
               
               <div className="flex items-center justify-between px-1 h-11 sm:h-12 gap-1 sm:gap-2">
                 
@@ -946,14 +1123,19 @@
                   </div>
                 ) : (
                   <div className="flex-1 relative flex items-center h-full animate-in fade-in slide-in-from-right-4 duration-300 z-50">
-                    <div className="relative z-50 flex items-center focus:outline-none max-w-full origin-left overflow-hidden">
-                      <h2 className="text-[15px] sm:text-xl font-bold tracking-tight flex items-center gap-1 sm:gap-2 whitespace-nowrap min-w-0">
-                        <span className="truncate shrink-0 transition-colors duration-300 text-black dark:text-white">
+                    <div className="relative z-50 flex items-center gap-1 sm:gap-1.5 focus:outline-none max-w-full origin-left">
+                      <h2 className="text-[15px] sm:text-2xl font-bold text-gray-900 dark:text-white tracking-tight flex items-center gap-1 sm:gap-2 whitespace-nowrap truncate">
+                        <span className="truncate">
                           {activeTab === 'online' ? (
-                            <><span className="sm:hidden">DARI ONLINE</span><span className="hidden sm:inline">DARI ONLINE</span></>
+                            <><span className="sm:hidden">Online</span><span className="hidden sm:inline">DARI ONLINE</span></>
                           ) : (
-                            <><span className="sm:hidden">DARI SUPPLIER</span><span className="hidden sm:inline">DARI SUPPLIER</span></>
+                            <><span className="sm:hidden">Supplier</span><span className="hidden sm:inline">DARI SUPPLIER</span></>
                           )}
+                        </span>
+                        
+                        <span className="bg-gray-200 dark:bg-orange-500/20 text-gray-600 dark:text-orange-400 px-1.5 sm:px-2.5 py-0.5 rounded-full text-[10px] sm:text-sm font-semibold flex items-center gap-1 sm:gap-1.5 shrink-0 dark:border dark:border-orange-500/30">
+                          {activeTab === 'online' ? processedOnline.length : processedSupplier.length}
+                          {activeTab === 'online' && isAutoSyncing && <RefreshCw size={12} className="animate-spin text-gray-400 dark:text-orange-400" />}
                         </span>
                       </h2>
                     </div>
@@ -962,19 +1144,19 @@
 
                 {!isSearchActive && (
                   <div className="flex justify-center shrink-0 z-40 mx-0.5 sm:mx-1">
-                    <div className="relative flex items-center h-10 sm:h-[44px] bg-gray-200/80 dark:bg-orange-950/30 rounded-[14px] sm:rounded-2xl border border-gray-200 dark:border-orange-500/20 overflow-hidden p-0 w-24 sm:w-[110px] shadow-sm">
+                    <div className="relative flex items-center h-10 sm:h-12 bg-gray-200/80 dark:bg-orange-950/30 rounded-[14px] sm:rounded-2xl border border-gray-200 dark:border-orange-500/20 overflow-hidden p-0 w-24 sm:w-[110px] shadow-sm">
                       <div
                         className="absolute top-0 bottom-0 bg-white dark:bg-gradient-to-r dark:from-orange-500 dark:to-yellow-500 shadow-sm transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]"
                         style={{ left: activeTab === 'online' ? '0%' : '50%', width: '50%', borderRadius: 'inherit' }}
                       ></div>
                       <button
-                        onClick={() => { setActiveTab('online'); setIsSearchActive(false); setSearchQuery(''); window.scrollTo({top: 0}); }}
+                        onClick={() => { setActiveTab('online'); setIsSearchActive(false); setSearchQuery(''); }}
                         className={`relative z-10 w-1/2 h-full flex items-center justify-center text-[11px] sm:text-xs font-bold tracking-widest uppercase transition-colors duration-300 ${activeTab === 'online' ? 'text-black dark:text-black' : 'text-gray-500 hover:text-gray-800 dark:text-orange-200 dark:hover:text-orange-100'}`}
                       >
                         OL
                       </button>
                       <button
-                        onClick={() => { setActiveTab('supplier'); setIsSearchActive(false); setSearchQuery(''); setSortBy('status'); window.scrollTo({top: 0}); }}
+                        onClick={() => { setActiveTab('supplier'); setIsSearchActive(false); setSearchQuery(''); setSortBy('status'); }}
                         className={`relative z-10 w-1/2 h-full flex items-center justify-center text-[11px] sm:text-xs font-bold tracking-widest uppercase transition-colors duration-300 ${activeTab === 'supplier' ? 'text-black dark:text-black' : 'text-gray-500 hover:text-gray-800 dark:text-orange-200 dark:hover:text-orange-100'}`}
                       >
                         SUP
@@ -988,7 +1170,7 @@
                   {!isSearchActive && (activeTab === 'online' ? allOnlinePackages.length : allSupplierPackages.length) > 0 && (
                     <button 
                       onClick={() => setIsSearchActive(true)}
-                      className="h-10 w-10 sm:h-[44px] sm:w-[44px] bg-white dark:bg-orange-500/10 border border-gray-200 dark:border-orange-500/30 rounded-[14px] sm:rounded-2xl flex items-center justify-center text-gray-700 dark:text-orange-400 shadow-sm hover:bg-gray-50 dark:hover:bg-orange-500/20 transition-colors"
+                      className="h-10 w-10 sm:h-12 sm:w-12 bg-white dark:bg-orange-500/10 border border-gray-200 dark:border-orange-500/30 rounded-[14px] sm:rounded-2xl flex items-center justify-center text-gray-700 dark:text-orange-400 shadow-sm hover:bg-gray-50 dark:hover:bg-orange-500/20 transition-colors"
                       title="Cari"
                     >
                       <Search size={20} className="sm:w-5 sm:h-5" />
@@ -998,7 +1180,7 @@
                   {(activeTab === 'online' ? allOnlinePackages.length : allSupplierPackages.length) > 0 && (
                     <div className="relative">
                       <button 
-                        className="h-10 w-10 sm:h-[44px] sm:w-[44px] bg-white dark:bg-orange-500/10 border border-gray-200 dark:border-orange-500/30 rounded-[14px] sm:rounded-2xl flex items-center justify-center text-gray-700 dark:text-orange-400 shadow-sm hover:bg-gray-50 dark:hover:bg-orange-500/20 transition-colors"
+                        className="h-10 w-10 sm:h-12 sm:w-12 bg-white dark:bg-orange-500/10 border border-gray-200 dark:border-orange-500/30 rounded-[14px] sm:rounded-2xl flex items-center justify-center text-gray-700 dark:text-orange-400 shadow-sm hover:bg-gray-50 dark:hover:bg-orange-500/20 transition-colors"
                         title="Filter Data"
                       >
                         <Filter size={20} className="sm:w-5 sm:h-5" />
@@ -1019,7 +1201,7 @@
                   {notifPermission !== 'granted' && (
                     <button
                       onClick={requestNotifPermission}
-                      className="h-10 w-10 sm:h-[44px] sm:w-[44px] border rounded-[14px] sm:rounded-2xl flex items-center justify-center transition-colors shadow-sm shrink-0 bg-white dark:bg-orange-500/10 border-gray-200 dark:border-orange-500/30 text-gray-700 dark:text-orange-400 hover:bg-gray-50 dark:hover:bg-orange-500/20"
+                      className="h-10 w-10 sm:h-12 sm:w-12 border rounded-[14px] sm:rounded-2xl flex items-center justify-center transition-colors shadow-sm shrink-0 bg-white dark:bg-orange-500/10 border-gray-200 dark:border-orange-500/30 text-gray-700 dark:text-orange-400 hover:bg-gray-50 dark:hover:bg-orange-500/20"
                       title="Aktifkan Notifikasi"
                     >
                       <BellOff size={20} className="sm:w-5 sm:h-5" />
@@ -1028,7 +1210,7 @@
 
                   <button
                     onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                    className="h-10 w-10 sm:h-[44px] sm:w-[44px] bg-white dark:bg-orange-500/10 border border-gray-200 dark:border-orange-500/30 rounded-[14px] sm:rounded-2xl flex items-center justify-center text-gray-700 dark:text-orange-400 shadow-sm hover:bg-gray-50 dark:hover:bg-orange-500/20 transition-colors shrink-0"
+                    className="h-10 w-10 sm:h-12 sm:w-12 bg-white dark:bg-orange-500/10 border border-gray-200 dark:border-orange-500/30 rounded-[14px] sm:rounded-2xl flex items-center justify-center text-gray-700 dark:text-orange-400 shadow-sm hover:bg-gray-50 dark:hover:bg-orange-500/20 transition-colors shrink-0"
                     title={theme === 'dark' ? 'Mode Terang' : 'Mode Gelap'}
                   >
                     {theme === 'dark' ? <Sun size={20} className="sm:w-5 sm:h-5" /> : <Moon size={20} className="sm:w-5 sm:h-5" />}
@@ -1036,7 +1218,7 @@
 
                   <button 
                     onClick={() => setIsModalOpen(true)}
-                    className="bg-black dark:bg-gradient-to-br dark:from-orange-400 dark:to-yellow-500 hover:bg-gray-800 dark:hover:from-orange-500 dark:hover:to-yellow-600 text-white dark:text-black h-10 w-10 sm:h-[44px] sm:w-[44px] rounded-[14px] sm:rounded-2xl flex items-center justify-center transition-transform active:scale-95 shadow-md shrink-0 border-none"
+                    className="bg-black dark:bg-gradient-to-br dark:from-orange-400 dark:to-yellow-500 hover:bg-gray-800 dark:hover:from-orange-500 dark:hover:to-yellow-600 text-white dark:text-black h-10 w-10 sm:h-12 sm:w-12 rounded-[14px] sm:rounded-2xl flex items-center justify-center transition-transform active:scale-95 shadow-md shrink-0 border-none"
                     title={activeTab === 'online' ? "Tambah Resi" : "Tambah Note Supplier"}
                   >
                     <Plus size={24} className="sm:w-6 sm:h-6" strokeWidth={3} />
@@ -1046,11 +1228,14 @@
             </div>
           </div>
 
-          <main className="w-full relative overflow-visible">
-            <div className="w-full pt-4 overflow-visible">
-              
-              {activeTab === 'online' && (
-                <section className="w-full animate-in fade-in slide-in-from-left-4 duration-300">
+          <main className="w-full relative">
+            <div className="w-full pt-4 overflow-x-hidden">
+              <div 
+                className="flex transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] items-start w-[200%]"
+                style={{ transform: activeTab === 'online' ? 'translateX(0%)' : 'translateX(-50%)' }}
+              >
+                
+                <section className="w-1/2">
                   <div className="max-w-2xl mx-auto px-3 sm:px-8">
                     <div className="space-y-4">
                       {processedOnline.length === 0 ? (
@@ -1061,8 +1246,8 @@
                             </div>
                             <p className="text-gray-500 dark:text-gray-400 font-semibold mb-2">
                               {allOnlinePackages.length === 0 
-                                ? "Belum ada resi yang disimpan." 
-                                : "Resi tidak ditemukan."}
+                                ? "Belum ada paket yang dilacak." 
+                                : "Paket tidak ditemukan."}
                             </p>
                             {allOnlinePackages.length === 0 && (
                               <button onClick={() => setIsModalOpen(true)} className="text-black dark:text-orange-500 font-bold text-sm hover:underline">
@@ -1072,58 +1257,46 @@
                           </div>
                         </div>
                       ) : (
-                        <div className="space-y-8 pb-4 relative z-10">
+                        <div className="space-y-8">
                           {displayOnlineActive.length > 0 && (
                             <div>
-                              <div className="sticky top-[64px] z-[80] bg-[#F8FAFC]/95 dark:bg-[#080302]/95 backdrop-blur-xl py-3 mb-5 -mx-3 px-4 border-b border-gray-200/80 dark:border-[#2a1b15] flex items-center justify-between shadow-sm transition-colors duration-300">
-                                <h3 className="text-[11px] sm:text-xs font-black text-blue-600 dark:text-blue-500 tracking-widest uppercase flex items-center gap-1.5">
-                                  <Truck size={16} strokeWidth={2.5} />
-                                  MASIH DILACAK
-                                </h3>
-                                <span className="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold border border-blue-200 dark:border-blue-800/50">
-                                  {displayOnlineActive.length}
-                                </span>
-                              </div>
-                              <div className="space-y-2 relative z-10">
-                                {displayOnlineActive.map(pkg => (
-                                  <PackageCapsule 
-                                    key={pkg.awb} 
-                                    pkg={pkg} 
-                                    onRemove={requestRemovePackage}
-                                    onEdit={requestEditPackage}
-                                    onRequestMarkDelivered={requestMarkDelivered}
-                                    onUndoDelivered={undoSupplierDelivered}
-                                    deliveringAwb={deliveringAwb}
-                                  />
-                                ))}
-                              </div>
+                              {displayOnlineActive.map(pkg => (
+                                <PackageCapsule 
+                                  key={pkg.awb} 
+                                  pkg={pkg} 
+                                  onRemove={requestRemovePackage}
+                                  onEdit={requestEditPackage}
+                                  onRequestMarkDelivered={requestMarkDelivered}
+                                  onUndoDelivered={undoSupplierDelivered}
+                                  isExpanded={expandedAwb === pkg.awb}
+                                  onToggleExpand={() => setExpandedAwb(expandedAwb === pkg.awb ? null : pkg.awb)}
+                                  deliveringAwb={deliveringAwb}
+                                />
+                              ))}
                             </div>
                           )}
                           
                           {displayOnlineHistory.length > 0 && (
-                            <div id="online-history">
-                              <div className="sticky top-[64px] z-[80] bg-[#F8FAFC]/95 dark:bg-[#080302]/95 backdrop-blur-xl py-3 mb-5 -mx-3 px-4 border-b border-gray-200/80 dark:border-[#2a1b15] flex items-center justify-between shadow-sm transition-colors duration-300">
-                                <h3 className="text-[11px] sm:text-xs font-black text-green-600 dark:text-green-500 tracking-widest uppercase flex items-center gap-1.5">
-                                  <CheckCircle size={16} strokeWidth={2.5} />
-                                  RIWAYAT TIBA
+                            <div>
+                              <div className="flex items-center gap-3 mb-4 px-1">
+                                <h3 className="text-xs font-bold text-gray-400 dark:text-gray-500 tracking-widest uppercase">
+                                  Riwayat Tiba
                                 </h3>
-                                <span className="bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold border border-green-200 dark:border-green-800/50">
-                                  {displayOnlineHistory.length}
-                                </span>
+                                <div className="flex-1 h-px bg-gray-200 dark:bg-[#2a1b15]"></div>
                               </div>
-                              <div className="space-y-2 relative z-10">
-                                {displayOnlineHistory.map(pkg => (
-                                  <PackageCapsule 
-                                    key={pkg.awb} 
-                                    pkg={pkg} 
-                                    onRemove={requestRemovePackage}
-                                    onEdit={requestEditPackage}
-                                    onRequestMarkDelivered={requestMarkDelivered}
-                                    onUndoDelivered={undoSupplierDelivered}
-                                    deliveringAwb={deliveringAwb}
-                                  />
-                                ))}
-                              </div>
+                              {displayOnlineHistory.map(pkg => (
+                                <PackageCapsule 
+                                  key={pkg.awb} 
+                                  pkg={pkg} 
+                                  onRemove={requestRemovePackage}
+                                  onEdit={requestEditPackage}
+                                  onRequestMarkDelivered={requestMarkDelivered}
+                                  onUndoDelivered={undoSupplierDelivered}
+                                  isExpanded={expandedAwb === pkg.awb}
+                                  onToggleExpand={() => setExpandedAwb(expandedAwb === pkg.awb ? null : pkg.awb)}
+                                  deliveringAwb={deliveringAwb}
+                                />
+                              ))}
                             </div>
                           )}
                         </div>
@@ -1131,10 +1304,8 @@
                     </div>
                   </div>
                 </section>
-              )}
 
-              {activeTab === 'supplier' && (
-                <section className="w-full animate-in fade-in slide-in-from-right-4 duration-300">
+                <section className="w-1/2">
                   <div className="max-w-2xl mx-auto px-3 sm:px-8">
                     <div className="space-y-4">
                       {processedSupplier.length === 0 ? (
@@ -1156,58 +1327,46 @@
                           </div>
                         </div>
                       ) : (
-                        <div className="space-y-8 pb-4 relative z-10">
+                        <div className="space-y-8">
                           {displaySupplierActive.length > 0 && (
                             <div>
-                              <div className="sticky top-[64px] z-[80] bg-[#F8FAFC]/95 dark:bg-[#080302]/95 backdrop-blur-xl py-3 mb-5 -mx-3 px-4 border-b border-gray-200/80 dark:border-[#2a1b15] flex items-center justify-between shadow-sm transition-colors duration-300">
-                                <h3 className="text-[11px] sm:text-xs font-black text-blue-600 dark:text-blue-500 tracking-widest uppercase flex items-center gap-1.5">
-                                  <Truck size={16} strokeWidth={2.5} />
-                                  MASIH DIKIRIM
-                                </h3>
-                                <span className="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold border border-blue-200 dark:border-blue-800/50">
-                                  {displaySupplierActive.length}
-                                </span>
-                              </div>
-                              <div className="space-y-2 relative z-10">
-                                {displaySupplierActive.map(pkg => (
-                                  <PackageCapsule 
-                                    key={pkg.awb} 
-                                    pkg={pkg} 
-                                    onRemove={requestRemovePackage}
-                                    onEdit={requestEditPackage}
-                                    onRequestMarkDelivered={requestMarkDelivered}
-                                    onUndoDelivered={undoSupplierDelivered}
-                                    deliveringAwb={deliveringAwb}
-                                  />
-                                ))}
-                              </div>
+                              {displaySupplierActive.map(pkg => (
+                                <PackageCapsule 
+                                  key={pkg.awb} 
+                                  pkg={pkg} 
+                                  onRemove={requestRemovePackage}
+                                  onEdit={requestEditPackage}
+                                  onRequestMarkDelivered={requestMarkDelivered}
+                                  onUndoDelivered={undoSupplierDelivered}
+                                  isExpanded={expandedAwb === pkg.awb}
+                                  onToggleExpand={() => setExpandedAwb(expandedAwb === pkg.awb ? null : pkg.awb)}
+                                  deliveringAwb={deliveringAwb}
+                                />
+                              ))}
                             </div>
                           )}
                           
                           {displaySupplierHistory.length > 0 && (
-                            <div id="supplier-history">
-                              <div className="sticky top-[64px] z-[80] bg-[#F8FAFC]/95 dark:bg-[#080302]/95 backdrop-blur-xl py-3 mb-5 -mx-3 px-4 border-b border-gray-200/80 dark:border-[#2a1b15] flex items-center justify-between shadow-sm transition-colors duration-300">
-                                <h3 className="text-[11px] sm:text-xs font-black text-green-600 dark:text-green-500 tracking-widest uppercase flex items-center gap-1.5">
-                                  <CheckCircle size={16} strokeWidth={2.5} />
-                                  RIWAYAT TIBA
+                            <div>
+                              <div className="flex items-center gap-3 mb-4 px-1">
+                                <h3 className="text-xs font-bold text-gray-400 dark:text-gray-500 tracking-widest uppercase">
+                                  Riwayat Tiba
                                 </h3>
-                                <span className="bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold border border-green-200 dark:border-green-800/50">
-                                  {displaySupplierHistory.length}
-                                </span>
+                                <div className="flex-1 h-px bg-gray-200 dark:bg-[#2a1b15]"></div>
                               </div>
-                              <div className="space-y-2 relative z-10">
-                                {displaySupplierHistory.map(pkg => (
-                                  <PackageCapsule 
-                                    key={pkg.awb} 
-                                    pkg={pkg} 
-                                    onRemove={requestRemovePackage}
-                                    onEdit={requestEditPackage}
-                                    onRequestMarkDelivered={requestMarkDelivered}
-                                    onUndoDelivered={undoSupplierDelivered}
-                                    deliveringAwb={deliveringAwb}
-                                  />
-                                ))}
-                              </div>
+                              {displaySupplierHistory.map(pkg => (
+                                <PackageCapsule 
+                                  key={pkg.awb} 
+                                  pkg={pkg} 
+                                  onRemove={requestRemovePackage}
+                                  onEdit={requestEditPackage}
+                                  onRequestMarkDelivered={requestMarkDelivered}
+                                  onUndoDelivered={undoSupplierDelivered}
+                                  isExpanded={expandedAwb === pkg.awb}
+                                  onToggleExpand={() => setExpandedAwb(expandedAwb === pkg.awb ? null : pkg.awb)}
+                                  deliveringAwb={deliveringAwb}
+                                />
+                              ))}
                             </div>
                           )}
                         </div>
@@ -1215,8 +1374,8 @@
                     </div>
                   </div>
                 </section>
-              )}
 
+              </div>
             </div>
           </main>
           
@@ -1244,7 +1403,7 @@
               >
                 <div className="relative z-10 px-6 py-5 border-b border-gray-100 dark:border-[#2a1b15] flex justify-between items-center bg-white dark:bg-transparent">
                   <h3 className="font-bold text-xl text-gray-900 dark:text-white tracking-tight">
-                    {activeTab === 'online' ? 'Simpan Resi Baru' : 'Note Supplier'}
+                    {activeTab === 'online' ? 'Lacak Resi Baru' : 'Note Supplier'}
                   </h3>
                   <button onClick={() => setIsModalOpen(false)} className="p-2 -mr-2 text-gray-400 hover:text-black dark:text-orange-400 dark:hover:text-orange-300 hover:bg-gray-100 dark:hover:bg-orange-500/20 rounded-full transition-colors bg-gray-50 dark:bg-orange-500/10">
                     <X size={20} strokeWidth={3} />
@@ -1322,11 +1481,11 @@
                           {isLoading ? (
                             <>
                               <RefreshCw size={20} className="animate-spin" />
-                              Menyimpan...
+                              Menghubungkan ke Server...
                             </>
                           ) : (
                             <>
-                              Simpan ke Pantauan
+                              Tambah ke Pantauan
                               <Plus size={20} />
                             </>
                           )}
@@ -1421,7 +1580,7 @@
                           {isLoading ? (
                             <>
                               <RefreshCw size={20} className="animate-spin" />
-                              Menyimpan...
+                              Menghubungkan ke Server...
                             </>
                           ) : (
                             <>
